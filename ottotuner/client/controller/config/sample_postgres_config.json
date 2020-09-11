@@ -1,0 +1,9 @@
+{
+  "database_type": "postgres",
+  "database_url": "jdbc:postgresql://localhost:5432/htap",
+  "username": "postgres",
+  "password": "ottotuner",
+  "upload_code": "DEPRECATED",
+  "upload_url": "DEPRECATED",
+  "workload_name": "htap"
+}

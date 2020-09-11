@@ -1,0 +1,10 @@
+{
+ "global": {
+  "pg_stat_archiver": {
+   "archived_count": "0",
+   "failed_count": "0",
+    }
+   }
+  }
+ }
+}
