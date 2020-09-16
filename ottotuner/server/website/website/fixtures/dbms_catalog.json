@@ -1,6 +1,14 @@
 [
   {
     "model":"website.DBMSCatalog",
+    "pk":7,
+    "fields":{
+        "type":2,
+        "version":"10.9"
+     }
+  },
+  {
+    "model":"website.DBMSCatalog",
     "pk":6,
     "fields":{
         "type":2,
