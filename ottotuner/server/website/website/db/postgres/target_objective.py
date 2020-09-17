@@ -61,6 +61,8 @@ class RankSum_tpmC_QphH(BaseTargetObjective):
         ### tpmC: i=0; QphH: i=1;
         w1 = 2*(3-0)/6;
         w2 = 2*(3-1)/6;
+        w1 = w1 / (w1+w2)
+        w2 = w2 / (w1+w2)
         variable = (metrics['unified_HTAP_metric.QphH']*w2) + (w1*metrics['unified_HTAP_metric.tpmC'])
         return variable
 
@@ -73,6 +75,8 @@ class RankSum_QphH_tpmC(BaseTargetObjective):
         ### tpmC: i=0; QphH: i=1;
         w1 = 2*(3-0)/6;
         w2 = 2*(3-1)/6;
+        w1 = w1 / (w1+w2)
+        w2 = w2 / (w1+w2)
         variable = (metrics['unified_HTAP_metric.QphH']*w1) + (w2*metrics['unified_HTAP_metric.tpmC'])
         return variable
 

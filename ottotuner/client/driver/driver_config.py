@@ -200,4 +200,4 @@ WEBSITE_URL = 'http://127.0.0.1:8000'
 #WEBSITE_URL = 'http://0.0.0.0:8000/'
 
 # Code for uploading new results to the website
-UPLOAD_CODE = '6UEOC8CUGUJ2X9Y8ZW39'
+UPLOAD_CODE = '3DL3VX4J8KEOSBXPA45V'
