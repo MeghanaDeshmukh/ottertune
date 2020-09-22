@@ -5,6 +5,7 @@
 #
 import logging
 
+from website.utils import DataUtil, JSONUtil
 from ..base.target_objective import BaseThroughput
 from website.types import DBMSType
 from ..base.target_objective import (BaseTargetObjective, BaseThroughput, LESS_IS_BETTER,
@@ -14,20 +15,29 @@ LOG = logging.getLogger(__name__)
 
 
 class ElapsedTime(BaseTargetObjective):
-
     def __init__(self):
         super().__init__(name='elapsed_time', pprint='Elapsed Time', unit='seconds',
                          short_unit='s', improvement=LESS_IS_BETTER)
-
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         return observation_time
 
+class Chebyshev(BaseTargetObjective):
+    def __init__(self):
+        super().__init__(name='Chebyshev', pprint='Chebyshev', unit='seconds',
+                         short_unit='s', improvement=MORE_IS_BETTER)
+    def compute(self, metrics, observation_time, hyperparameters):
+        print("Got the hyperparameters. *********** in Chebyshev *********** ",str(hyperparameters))
+        hyperparams = JSONUtil.loads(hyperparameters)
+        tpmC = metrics['unified_HTAP_metric.tpmC'] - hyperparams['BASE_TPMC']
+        QphH = metrics['unified_HTAP_metric.QphH'] - hyperparams['BASE_QPHH']
+        targetValue = max(tpmC, QphH);
+        return targetValue
 
 class UnifiedHTAPMetric(BaseTargetObjective):
     def __init__(self):
         super().__init__(name='Unified_HTAP_metric', pprint='Unified HTAP Metric', unit='seconds',
                          short_unit='s', improvement=MORE_IS_BETTER)
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         variable = metrics['unified_HTAP_metric.QphH'] * metrics['unified_HTAP_metric.tpmC'];
         OLAPWorkers = metrics['unified_HTAP_metric.OLAPWorkers']
         if OLAPWorkers > 0:
@@ -38,17 +48,15 @@ class tpmC(BaseTargetObjective):
     def __init__(self):
         super().__init__(name='HTAP_tpmC', pprint='HTAP tpmC', unit='seconds',
                          short_unit='s', improvement=MORE_IS_BETTER)
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         variable = metrics['unified_HTAP_metric.tpmC'];
         return variable
 
 class QphH(BaseTargetObjective):
-
     def __init__(self):
         super().__init__(name='HTAP_QphH', pprint='HTAP QphH', unit='seconds',
                          short_unit='s', improvement=MORE_IS_BETTER)
-
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         variable = metrics['unified_HTAP_metric.QphH'];
         return variable
 
@@ -56,7 +64,7 @@ class RankSum_tpmC_QphH(BaseTargetObjective):
     def __init__(self):
         super().__init__(name='HTAP_RankSum_tQ', pprint='HTAP RankSum tQ', unit='seconds',
                          short_unit='s', improvement=MORE_IS_BETTER)
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         ### wi = 2(n+1 - i) / n(n+1);  n: total attributes; i: Rank;
         ### tpmC: i=0; QphH: i=1;
         w1 = 2*(3-0)/6;
@@ -70,7 +78,7 @@ class RankSum_QphH_tpmC(BaseTargetObjective):
     def __init__(self):
         super().__init__(name='HTAP_RankSum_Qt', pprint='HTAP RankSum Qt', unit='seconds',
                          short_unit='s', improvement=MORE_IS_BETTER)
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         ### wi = 2(n+1 - i) / n(n+1);  n: total attributes; i: Rank;
         ### tpmC: i=0; QphH: i=1;
         w1 = 2*(3-0)/6;
@@ -87,5 +95,6 @@ target_objective_list = tuple((DBMSType.POSTGRES, target_obj) for target_obj in 
     tpmC(),
     QphH(),
     RankSum_tpmC_QphH(),
-    RankSum_QphH_tpmC()
+    RankSum_QphH_tpmC(),
+    Chebyshev()
 ])

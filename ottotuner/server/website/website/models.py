@@ -215,7 +215,9 @@ class Session(BaseModel):
     "INIT_FLIP_PROB": 0.3,
     "NUM_SAMPLES": 30,
     "TF_NUM_THREADS": 4,
-    "TOP_NUM_CONFIG": 10}''')
+    "TOP_NUM_CONFIG": 10,
+    "BASE_TPMC": 0,
+    "BASE_QPHH": 0}''')
 
     def clean(self):
         if self.target_objective is None:

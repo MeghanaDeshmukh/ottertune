@@ -48,7 +48,7 @@ class BaseTargetObjective(BaseMetric):
     def label(self):
         return '{} ({})'.format(self.pprint, self.short_unit)
 
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         raise NotImplementedError()
 
     def is_udf(self):  # pylint: disable=no-self-use
@@ -67,7 +67,7 @@ class BaseThroughput(BaseTargetObjective):
                     type(transactions_counter)))
         self.transactions_counter = transactions_counter
 
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         if isinstance(self.transactions_counter, tuple):
             num_txns = sum(metrics[ctr] for ctr in self.transactions_counter)
         else:
@@ -87,7 +87,7 @@ class BaseUserDefinedTarget(BaseTargetObjective):
     def is_udf(self):
         return True
 
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         name = 'udm.' + self.name
         if name not in metrics:
             LOG.warning('cannot find the user defined target objective %s,\

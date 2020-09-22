@@ -192,7 +192,7 @@ class BaseParser:
             value = value.lower()
         return value in self.valid_true_val or value in self.valid_false_val
 
-    def convert_dbms_metrics(self, metrics, observation_time, target_objective):
+    def convert_dbms_metrics(self, metrics, observation_time, target_objective, hyperparameters):
         numeric_metric_data = {}
         numeric_metric_catalog = MetricCatalog.objects.filter(
             dbms__id=self.dbms_id, metric_type__in=MetricType.numeric())
@@ -230,7 +230,7 @@ class BaseParser:
         for target_name, target_instance in target_list.items():
             # wait_class is needed to calculate target_objectives, but it is not numeric
             numeric_metric_data[target_name] = target_instance.compute(
-                metrics, observation_time)
+                metrics, observation_time, hyperparameters)
 
         return numeric_metric_data
 

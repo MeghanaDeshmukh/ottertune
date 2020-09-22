@@ -141,7 +141,7 @@ class MyRocksParser(BaseParser):
             valid_metrics, metric_catalog, default_value='0')
         return valid_metrics, diffs
 
-    def convert_dbms_metrics(self, metrics, observation_time, target_objective):
+    def convert_dbms_metrics(self, metrics, observation_time, target_objective, hyperparameters):
         base_metric_data = {}
         metric_data = {}
         numeric_metric_catalog = MetricCatalog.objects.filter(
@@ -176,7 +176,7 @@ class MyRocksParser(BaseParser):
         target_objective_instance = target_objectives.get_instance(
             self.dbms_id, target_objective)
         metric_data[target_objective] = target_objective_instance.compute(
-            base_metric_data, observation_time)
+            base_metric_data, observation_time, hyperparameters)
 
         return metric_data
 

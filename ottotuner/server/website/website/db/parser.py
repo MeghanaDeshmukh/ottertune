@@ -62,10 +62,10 @@ def convert_dbms_knobs(dbms_id, knobs, knob_catalog=None):
     return _get(dbms_id).convert_dbms_knobs(knobs, knob_catalog)
 
 
-def convert_dbms_metrics(dbms_id, numeric_metrics, observation_time, target_objective):
+def convert_dbms_metrics(dbms_id, numeric_metrics, observation_time, target_objective, hyperparameters):
     print("---------------------- MRD ----------dbms id is: ",str(_get(dbms_id)))
     return _get(dbms_id).convert_dbms_metrics(
-        numeric_metrics, observation_time, target_objective)
+        numeric_metrics, observation_time, target_objective, hyperparameters)
 
 
 def parse_dbms_knobs(dbms_id, knobs):

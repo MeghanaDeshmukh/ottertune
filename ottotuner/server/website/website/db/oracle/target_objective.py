@@ -20,7 +20,7 @@ class CustomDBTime(BaseTargetObjective):
         super().__init__(name='custom_db_time', pprint='Custom DB Time', unit='seconds',
                          short_unit='s', improvement=LESS_IS_BETTER)
 
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         total_wait_time = 0.
         # dba_hist db_time will be 0 after cleaning if & only if it does not exist before cleaning
         has_dba_hist = metrics['global.dba_hist_sys_time_model.db time'] > 0
@@ -58,7 +58,7 @@ class NormalizedDBTime(BaseTargetObjective):
         for metric in MetricCatalog.objects.filter(dbms=dbms):
             self.default_values[metric.name] = metric.default
 
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         extra_io_metrics = ["log file sync"]
         not_io_metrics = ["read by other session"]
         total_wait_time = 0.
@@ -95,7 +95,7 @@ class RawDBTime(BaseTargetObjective):
         super().__init__(name='raw_db_time', pprint='Raw DB Time',
                          unit='seconds', short_unit='s', improvement=LESS_IS_BETTER)
 
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         has_dba_hist = metrics['global.dba_hist_sys_time_model.db time'] > 0
         if has_dba_hist:
             return metrics['global.dba_hist_sys_time_model.db time'] / 1000000.
@@ -108,7 +108,7 @@ class TransactionCounter(BaseTargetObjective):
         super().__init__(name='transaction_counter', pprint='Number of commits and rollbacks',
                          unit='transactions', short_unit='txn', improvement=MORE_IS_BETTER)
 
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         num_txns = sum(metrics[ctr] for ctr in ('global.sysstat.user commits',
                                                 'global.sysstat.user rollbacks'))
         return num_txns
@@ -120,7 +120,7 @@ class ElapsedTime(BaseTargetObjective):
         super().__init__(name='elapsed_time', pprint='Elapsed Time', unit='seconds',
                          short_unit='s', improvement=LESS_IS_BETTER)
 
-    def compute(self, metrics, observation_time):
+    def compute(self, metrics, observation_time, hyperparameters):
         return observation_time
 
 

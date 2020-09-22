@@ -712,7 +712,7 @@ def handle_result_files(session, files, execution_times=None):
             ('metrics_after', final_metric_diffs),
         ])
         numeric_metric_dict = parser.convert_dbms_metrics(
-            dbms.pk, metric_dict, observation_time, session.target_objective)
+            dbms.pk, metric_dict, observation_time, session.target_objective, session.hyperparameters)
         metric_data = MetricData.objects.create_metric_data(
             session, JSONUtil.dumps(metric_dict, pprint=True, sort=True),
             JSONUtil.dumps(numeric_metric_dict, pprint=True, sort=True), dbms)
@@ -737,7 +737,7 @@ def handle_result_files(session, files, execution_times=None):
             if normalized_db_time is not None:
                 normalized_db_time.reload_default_metrics()
             numeric_metric_dict = parser.convert_dbms_metrics(
-                dbms.pk, metric_dict, observation_time, session.target_objective)
+                dbms.pk, metric_dict, observation_time, session.target_objective, session.hyperparameters)
             metric_data.data = JSONUtil.dumps(numeric_metric_dict)
             metric_data.save()
         # Normalize metrics by the amount of work
