@@ -58,7 +58,6 @@ def run_background_tasks():
         time.sleep(15);
         num_modified = modified_workloads.count()
         if num_modified == 0:
-            LOG.info("No modified workload data STILL -- MRD. Ending background tasks.")    
             return
 
     # Create new entry in PipelineRun table to store the output of each of
@@ -283,10 +282,13 @@ def run_workload_characterization(metric_data, dbms=None):
     # Remove any constant columns
     nonconst_matrix = []
     nonconst_columnlabels = []
+#    print("the col labels and binned matris are ------- MRD : ", str(columnlabels), str(binned_matrix.T))
     for col, cl in zip(binned_matrix.T, columnlabels):
         if np.any(col != col[0]):
             nonconst_matrix.append(col.reshape(-1, 1))
             nonconst_columnlabels.append(cl)
+
+ #   print("the nonconst_matrix is ------- MRD : ", str(nonconst_matrix))
     assert len(nonconst_matrix) > 0, "Need more data to train the model"
     nonconst_matrix = np.hstack(nonconst_matrix)
     LOG.debug("Workload characterization ~ nonconst data size: %s", nonconst_matrix.shape)
@@ -361,10 +363,12 @@ def run_knob_identification(knob_data, metric_data, dbms):
     nonconst_knob_matrix = []
     nonconst_knob_columnlabels = []
 
+#    print("the col labels and binned matris are ------- MRD : ", str(knob_columnlabels), str(knob_matrix.T))
     for col, cl in zip(knob_matrix.T, knob_columnlabels):
         if np.any(col != col[0]):
             nonconst_knob_matrix.append(col.reshape(-1, 1))
             nonconst_knob_columnlabels.append(cl)
+#    print("the nonconst_matrix is ------- MRD : ", str(nonconst_knob_matrix))
     assert len(nonconst_knob_matrix) > 0, "Need more data to train the model"
     nonconst_knob_matrix = np.hstack(nonconst_knob_matrix)
 

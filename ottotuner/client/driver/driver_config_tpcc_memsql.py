@@ -30,7 +30,7 @@ DB_TYPE = 'memsql'
 DB_VERSION = '14'
 
 # Name of the database
-DB_NAME = 'htap'
+DB_NAME = 'tpcc'
 
 # Database username
 DB_USER = 'root'
@@ -56,7 +56,7 @@ DB_CONF_MOUNT = False
 DB_CONF = '/etc/sysctl.conf'
 
 # Path to the directory for storing database dump files
-DB_DUMP_DIR = '/tmp/htap/'
+DB_DUMP_DIR = '/tmp/tpcc'
 
 # Base config settings to always include when installing new configurations
 if DB_TYPE == 'mysql':
@@ -93,7 +93,7 @@ PG_DATADIR = '/etc/lib/memsql/'
 # ORACLE-SPECIFIC OPTIONS >>>
 ORACLE_AWR_ENABLED = False
 ORACLE_FLASH_BACK = True
-RESTORE_POINT = 'htap_point'
+RESTORE_POINT = 'tpcc_point'
 RECOVERY_FILE_DEST = '/opt/oracle/oradata/ORCL'
 RECOVERY_FILE_DEST_SIZE = '15G'
 
@@ -145,21 +145,18 @@ RESTART_SLEEP_SEC = 30
 #==========================================================
 
 # Path to OLTPBench directory
-OLTPBENCH_HOME = os.path.expanduser('/home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/')
+OLTPBENCH_HOME = os.path.expanduser('/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/')
 
 # Path to the OLTPBench configuration file
-OLTPBENCH_CONFIG = os.path.join(OLTPBENCH_HOME, 'config/htapb_config_memsql_ottotuner.xml')
+OLTPBENCH_CONFIG = os.path.join(OLTPBENCH_HOME, 'config/tpcc_config_memsql.xml')
 
 # Name of the benchmark to run
-OLTPBENCH_BENCH = 'htap'
+OLTPBENCH_BENCH = 'tpcc'
 
-# Name of the benchmark handler
-RUN_CMD = 'java -cp .:target/htapbench-0.95-jar-with-dependencies.jar:/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/lib/mysql-connector-java-5.1.47.jar:/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/lib/mysql-connector-java-5.1.47-sources.jar pt.haslab.htapbench.core.HTAPBench --s 5' ## For htapBench
-#RUN_CMD = 'sh /home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/run-Exec-HTAPB_memsql.sh' ## For htapBench
-#RUN_CMD = 'java -cp /home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/target/htapbench-0.95-jar-with-dependencies.jar pt.haslab.htapbench.core.HTAPBench --s 5 ' ## For htapBench
-LOG_PATH = os.path.join(OLTPBENCH_HOME, 'htap_run.log') ## For htapBench
-HTAP_FLAG = True
-#RUN_CMD = '/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/oltpbenchmark'  ## For oltp and olap / tpcc and tpch
+RUN_CMD = '/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/oltpbenchmark'  ## For oltp and olap / tpcc and tpch
+LOG_PATH = os.path.join(OLTPBENCH_HOME, 'tpcc_run.log') ## For htapBench
+HTAP_FLAG = False
+
 
 #==========================================================
 #  CONTROLLER OPTIONS
@@ -201,4 +198,4 @@ WEBSITE_URL = 'http://127.0.0.1:8000'
 #WEBSITE_URL = 'http://0.0.0.0:8000/'
 
 # Code for uploading new results to the website
-UPLOAD_CODE = 'KAG08DL3HZUI8UC0YNP3'
+UPLOAD_CODE = '9X4EMDG9NEA1ZRCETT18'

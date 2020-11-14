@@ -8,6 +8,7 @@ package com.controller;
 
 import com.controller.collectors.DBCollector;
 import com.controller.collectors.MySQLCollector;
+import com.controller.collectors.MemSQLCollector;
 import com.controller.collectors.OracleCollector;
 import com.controller.collectors.PostgresCollector;
 import com.controller.collectors.SAPHanaCollector;
@@ -281,6 +282,10 @@ public class Main {
       case MYSQL:
         collector =
             new MySQLCollector(config.getDBURL(), config.getDBUsername(), config.getDBPassword());
+        break;
+      case MEMSQL:
+        collector =
+            new MemSQLCollector(config.getDBURL(), config.getDBUsername(), config.getDBPassword());
         break;
       case SAPHANA:
         collector =

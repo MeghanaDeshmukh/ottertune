@@ -165,8 +165,8 @@ class DataUtil(object):
                                                         len(param_data)))
 
             metric_data = JSONUtil.loads(result.metric_data.data)
-            print("metric data: ",str(metric_data))
-            print("metric labels: ",str(metric_labels))
+            #print("metric data: ",str(metric_data))
+            #print("metric labels: ",str(metric_labels)) MRD 
             if len(metric_data) != len(metric_labels):
                 raise Exception(
                     ("Incorrect number of metrics "

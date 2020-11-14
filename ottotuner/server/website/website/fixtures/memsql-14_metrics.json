@@ -1,0 +1,266 @@
+[
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.queries",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Number of Queries executed?",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.query_compilations",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Number of queries compiled",
+            "dbms": 1014,
+            "default": 0 
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.successful_read_queries",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Number of read queries executed successfully",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.successful_write_queries",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Number of write queries executed successfully",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.failed_read_queries",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Number of read queries failed",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.failed_write_queries",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Number of write queries failed",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.uptime",
+            "vartype": 2,
+            "metric_type": 2,
+            "scope": "global",
+            "summary": "Total uptime of the server",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.threads_connected",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Total uptime of the server",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.threads_created",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Total uptime of the server",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.rows_affected_by_writes",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Total number of rows affected by writes",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.rows_returned_by_reads",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Total number of rows affected by reads",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.row_lock_wait_time",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Number of seconds waited for the row lock",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.max_used_connections",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "Maximum connections used.",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.connections",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "connections",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.aborted_clients",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "aborted clients",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.context_switches",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "context switches",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.execution_time_of_write",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "execution time of write",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.used_cluster_capacity",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "used cluster capacity",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "name": "global.execution_time_of_reads",
+            "vartype": 2,
+            "metric_type": 1,
+            "scope": "global",
+            "summary": "execution time of reads",
+            "dbms": 1014,
+            "default": 0
+        }
+    },
+    {
+        "model": "website.MetricCatalog",
+        "fields": {
+            "default": 0,
+            "scope": "global",
+            "vartype": 2,
+            "name": "unified_HTAP_metric.tpmC",
+            "summary": "tpch metric",
+            "dbms": 1014,
+            "metric_type": 1
+        }
+    },
+    {
+        "fields": {
+            "dbms": 1014,
+            "default": 0,
+            "scope": "global",
+            "vartype": 2,
+            "name": "unified_HTAP_metric.QphH",
+            "summary": "tpcc metric",
+            "metric_type": 1
+        },
+        "model": "website.MetricCatalog"
+    },
+    {
+        "fields": {
+            "dbms": 1014,
+            "default": 1,
+            "scope": "global",
+            "vartype": 2,
+            "name": "unified_HTAP_metric.OLAPWorkers",
+            "summary": "Number of OLAP Workers",
+            "metric_type": 1
+        },
+        "model": "website.MetricCatalog"
+    }
+]

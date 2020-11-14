@@ -15,6 +15,7 @@ public enum DatabaseType {
 
   /** Parameters: (1) JDBC Driver String */
   MYSQL("com.mysql.jdbc.Driver"),
+  MEMSQL("com.mysql.jdbc.Driver"),
   MYROCKS("com.mysql.jdbc.Driver"),
   POSTGRES("org.postgresql.Driver"),
   SAPHANA("com.sap.db.jdbc.Driver"),

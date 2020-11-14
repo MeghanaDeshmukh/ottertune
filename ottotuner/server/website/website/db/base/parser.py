@@ -379,6 +379,7 @@ class BaseParser:
 
     def create_knob_configuration(self, tuning_knobs):
         configuration = {}
+        print("in base parser.py ---- MRD -------- tuning knobs: ",str(tuning_knobs))
         for knob_name, knob_value in sorted(tuning_knobs.items()):
             # FIX ME: for now it only shows the global knobs, works for Postgres
             if knob_name.startswith('global.'):
@@ -386,6 +387,7 @@ class BaseParser:
                 configuration[knob_name_global] = knob_value
 
         configuration = OrderedDict(sorted(configuration.items()))
+        print("in base parser.py ---- MRD -------- configuration is: ",str(configuration))
         return configuration
 
     def format_bool(self, bool_value, metadata):

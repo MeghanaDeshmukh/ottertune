@@ -92,6 +92,8 @@ def create_controller_config():
                          'allowPublicKeyRetrieval=true&useSSL=false').format
         else:
             raise Exception("MySQL Database Version {} Not Implemented !".format(dconf.DB_VERSION))
+    elif dconf.DB_TYPE == 'memsql':
+        dburl_fmt = 'jdbc:mysql://{host}:{port}/{db}?useSSL=false'.format
     else:
         raise Exception("Database Type {} Not Implemented !".format(dconf.DB_TYPE))
 
@@ -129,6 +131,13 @@ def restart_database():
             run('docker restart {}'.format(dconf.CONTAINER_NAME), remote_only=True)
         else:
             sudo('service mysql restart')
+    elif dconf.DB_TYPE == 'memsql':
+        if dconf.HOST_CONN == 'docker':
+            local('docker restart {}'.format(dconf.CONTAINER_NAME))
+        elif dconf.HOST_CONN == 'remote_docker':
+            run('docker restart {}'.format(dconf.CONTAINER_NAME), remote_only=True)
+        else:
+            sudo('memsqlctl restart-node --all --yes')
     elif dconf.DB_TYPE == 'oracle':
         db_log_path = os.path.join(os.path.split(dconf.DB_CONF)[0], 'startup.log')
         local_log_path = os.path.join(dconf.LOG_DIR, 'startup.log')
@@ -157,6 +166,9 @@ def drop_database():
     elif dconf.DB_TYPE == 'mysql':
         run("mysql --user={} --password={} -e 'drop database if exists {}'".format(
             dconf.DB_USER, dconf.DB_PASSWORD, dconf.DB_NAME))
+    elif dconf.DB_TYPE == 'memsql':
+        run("mysql --user={} --host={} --port={} --password={} -e 'drop database if exists {}'".format(
+            dconf.DB_USER, dconf.DB_HOST, dconf.DB_PORT, dconf.DB_PASSWORD, dconf.DB_NAME))
     else:
         raise Exception("Database Type {} Not Implemented !".format(dconf.DB_TYPE))
 
@@ -169,6 +181,9 @@ def create_database():
     elif dconf.DB_TYPE == 'mysql':
         run("mysql --user={} --password={} -e 'create database {}'".format(
             dconf.DB_USER, dconf.DB_PASSWORD, dconf.DB_NAME))
+    elif dconf.DB_TYPE == 'memsql':
+        run("mysql --user={} --host={} --port={} --password={} -e 'create database {}'".format(
+            dconf.DB_USER, dconf.DB_HOST, dconf.DB_PORT, dconf.DB_PASSWORD, dconf.DB_NAME))
     else:
         raise Exception("Database Type {} Not Implemented !".format(dconf.DB_TYPE))
 
@@ -196,6 +211,7 @@ def drop_user():
     else:
         raise Exception("Database Type {} Not Implemented !".format(dconf.DB_TYPE))
 
+########### MRD change config update style ##################
 @task
 def reset_conf(always=True):
     if always:
@@ -212,34 +228,46 @@ def reset_conf(always=True):
     if signal not in lines:
         change_conf()
 
+
+########### MRD change config update style ##################
 @task
 def change_conf(next_conf=None):
-    signal = "# configurations recommended by ottertune:\n"
-    next_conf = next_conf or {}
+    signal = "# configurations recommended by ottertune:\n"  ## Line added in the config to check if its modified
+    next_conf = next_conf or {} ### If next_conf is null, create and empty dict.
+    print("In next config. The config obtained is: ", str(next_conf))
+    ### Open the config file. Not needed for memsql. 
+    if dconf.DB_TYPE != 'memsql':
+        tmp_conf_in = os.path.join(dconf.TEMP_DIR, os.path.basename(dconf.DB_CONF) + '.in')
+        get(dconf.DB_CONF, tmp_conf_in)
+        with open(tmp_conf_in, 'r') as f:
+            lines = f.readlines()
 
-    tmp_conf_in = os.path.join(dconf.TEMP_DIR, os.path.basename(dconf.DB_CONF) + '.in')
-    get(dconf.DB_CONF, tmp_conf_in)
-    with open(tmp_conf_in, 'r') as f:
-        lines = f.readlines()
+        ### If the file is never modified before, add the string at the end of the file.
+        if signal not in lines:
+            lines += ['\n', signal]
 
-    if signal not in lines:
-        lines += ['\n', signal]
-
-    signal_idx = lines.index(signal)
-    lines = lines[0:signal_idx + 1]
+        signal_idx = lines.index(signal)
+        lines = lines[0:signal_idx + 1]
 
     if dconf.DB_TYPE == 'mysql':
         lines.append('[mysqld]\n')
 
+    ### Check if anything has to modified even BEFORE running ottertune.
+    ### To collect the stats.
     if dconf.BASE_DB_CONF:
+        ## Checks if the config is of dict type. 
+        ### Else, throws error. 
         assert isinstance(dconf.BASE_DB_CONF, dict), \
             (type(dconf.BASE_DB_CONF), dconf.BASE_DB_CONF)
+        ## If it is dict type, then those values are added to the config file.
         for name, value in sorted(dconf.BASE_DB_CONF.items()):
             if value is None:
                 lines.append('{}\n'.format(name))
             else:
                 lines.append('{} = {}\n'.format(name, value))
 
+    ## IFF Recommended config is received as the next config in string format.
+    ## convert the string into dict if the check passes. 
     if isinstance(next_conf, str):
         with open(next_conf, 'r') as f:
             recommendation = json.load(
@@ -247,9 +275,19 @@ def change_conf(next_conf=None):
     else:
         recommendation = next_conf
 
+    ### Checking if the config recommended is of dict type. otherwise throw error.
+    ## If it is, then add the configs and values to the config file.
     assert isinstance(recommendation, dict)
-
+    print("The recommendations got are: ",str(recommendation))
     for name, value in recommendation.items():
+        ## Here, add a constraint for memsql processing
+        if dconf.DB_TYPE == 'memsql':
+            print("value before is: ",str(value))
+            value = int(str(value).replace('k', '000').replace('G', '000000000'))
+            print("value after is: ",str(value))
+            os.system("sudo memsqlctl update-config --key {} --value {} --set-global --yes".format(name, value))
+            continue;
+
         if dconf.DB_TYPE == 'oracle' and isinstance(value, str):
             value = value.strip('B')
         # If innodb_flush_method is set to NULL on a Unix-like system,
@@ -257,15 +295,18 @@ def change_conf(next_conf=None):
         if name == 'innodb_flush_method' and value == '':
             value = "fsync"
         lines.append('{} = {}\n'.format(name, value))
-    lines.append('\n')
+    
+    if dconf.DB_TYPE != 'memsql':
+        ## Not useful in memsql as the commands used directly writes into the config file.
+        lines.append('\n')
 
-    tmp_conf_out = os.path.join(dconf.TEMP_DIR, os.path.basename(dconf.DB_CONF) + '.out')
-    with open(tmp_conf_out, 'w') as f:
-        f.write(''.join(lines))
-
-    sudo('cp {0} {0}.ottertune.bak'.format(dconf.DB_CONF), remote_only=True)
-    put(tmp_conf_out, dconf.DB_CONF, use_sudo=True)
-    local('rm -f {} {}'.format(tmp_conf_in, tmp_conf_out))
+        tmp_conf_out = os.path.join(dconf.TEMP_DIR, os.path.basename(dconf.DB_CONF) + '.out')
+        with open(tmp_conf_out, 'w') as f:
+            f.write(''.join(lines))
+    
+        sudo('cp {0} {0}.ottertune.bak'.format(dconf.DB_CONF), remote_only=True)
+        put(tmp_conf_out, dconf.DB_CONF, use_sudo=True)
+        local('rm -f {} {}'.format(tmp_conf_in, tmp_conf_out))
 
 
 @task
@@ -277,7 +318,7 @@ def load_oltpbench():
     set_oltpbench_config()
     cmd = "{} -b {} -c {} --create=true --load=true".\
           format(dconf.RUN_CMD, dconf.OLTPBENCH_BENCH, dconf.OLTPBENCH_CONFIG)
-    print("load_oltpbench: command is: ",str(cmd))
+    print("---------- MRD ------------- run_oltpbench_bg: command is: ",str(cmd))
     with lcd(dconf.OLTPBENCH_HOME):  # pylint: disable=not-context-manager
         local(cmd)
 
@@ -289,9 +330,9 @@ def run_oltpbench():
         msg += 'please double check the option in driver_config.py'
         raise Exception(msg)
     set_oltpbench_config()
-    cmd = "{} -b {} -c {} --execute=true -s 5 -o outputfile >> {}".\
+    cmd = "{} -b {} -c {} --execute=true -s 35 -o outputfile >> {}".\
           format(dconf.RUN_CMD, dconf.OLTPBENCH_BENCH, dconf.OLTPBENCH_CONFIG, dconf.LOG_PATH)
-    print("run_oltpbench: command is: ",str(cmd))
+    print("---------- MRD ------------- run_oltpbench_bg: command is: ",str(cmd))
     with lcd(dconf.OLTPBENCH_HOME):  # pylint: disable=not-context-manager
         local(cmd)
 
@@ -306,7 +347,7 @@ def run_oltpbench_bg():
     set_oltpbench_config()
     cmd = "{} -b {} -c {} --execute=true -s 5 -o outputfile > {} 2>&1 &".\
           format(dconf.RUN_CMD ,dconf.OLTPBENCH_BENCH, dconf.OLTPBENCH_CONFIG, dconf.OLTPBENCH_LOG)
-    print("run_oltpbench_bg: command is: ",str(cmd))
+    print("---------- MRD ------------- run_oltpbench_bg: command is: ",str(cmd))
     with lcd(dconf.OLTPBENCH_HOME):  # pylint: disable=not-context-manager
         local(cmd)
 
@@ -422,12 +463,12 @@ def upload_result(result_dir=None, prefix=None, upload_code=None):
                 qphh = QphH[0]
             with open(fpath, 'r') as f:
                 json_object = json.load(f)
-            print("opening the json object",str(json_object['global']))
+#            print("opening the json object",str(json_object['global']))
             json_object['global']['unified_HTAP_metric'] = {}
             json_object['global']['unified_HTAP_metric']['tpmC'] = tpmc
             json_object['global']['unified_HTAP_metric']['QphH'] = qphh
             json_object['global']['unified_HTAP_metric']['OLAPWorkers'] = "10"
-            print("opening the json object",str(json_object['global']))
+#            print("opening the json object",str(json_object['global']))
             with open(fpath, 'w') as f:
                 json.dump(json_object, f, indent=1)
             print("Added the json object")
@@ -439,11 +480,11 @@ def upload_result(result_dir=None, prefix=None, upload_code=None):
     print(" The request is: ", str(files))
     response = requests.post(dconf.WEBSITE_URL + '/new_result/', files=files,
                              data={'upload_code': upload_code})
-    print(" The response content is: ", str(response.content))
-    print(" The response request is: ", str(type(response.request)))
-    print(" The response request is: ", str(response.request))
-    print(" The response text is: ", str(response.url))
-    print(" The response text is: ", str(response.json))
+    #print(" The response content is: ", str(response.content))
+    #print(" The response request is: ", str(type(response.request)))
+    #print(" The response request is: ", str(response.request))
+    #print(" The response text is: ", str(response.url))
+    #print(" The response text is: ", str(response.json))  MRD 
     if response.status_code != 200:
         raise Exception('Error uploading result.\nStatus: {}\nMessage: {}\n'.format(
             response.status_code, get_content(response)))
@@ -457,7 +498,7 @@ def upload_result(result_dir=None, prefix=None, upload_code=None):
 
 
 @task
-def get_result(max_time_sec=540, interval_sec=5, upload_code=None):
+def get_result(max_time_sec=840, interval_sec=5, upload_code=None):
     max_time_sec = int(max_time_sec)
     interval_sec = int(interval_sec)
     upload_code = upload_code or dconf.UPLOAD_CODE
@@ -569,7 +610,11 @@ def upload_batch(result_dir=None, sort=True, upload_code=None):
 
 @task
 def dump_database():
-    dumpfile = os.path.join(dconf.DB_DUMP_DIR, dconf.DB_NAME + '.dump')
+    if dconf.DB_TYPE == 'memsql':
+        dumpfile = dconf.DB_DUMP_DIR
+    else:
+        dumpfile = os.path.join(dconf.DB_DUMP_DIR, dconf.DB_NAME + '.dump')
+    
     if dconf.DB_TYPE == 'oracle':
         if not dconf.ORACLE_FLASH_BACK and file_exists(dumpfile):
             LOG.info('%s already exists ! ', dumpfile)
@@ -600,6 +645,11 @@ def dump_database():
     elif dconf.DB_TYPE == 'mysql':
         sudo('mysqldump --user={} --password={} --databases {} > {}'.format(
             dconf.DB_USER, dconf.DB_PASSWORD, dconf.DB_NAME, dumpfile))
+    elif dconf.DB_TYPE == 'memsql':
+        os.system("sudo rm -rf {}*.backup".format(os.path.join(dconf.DB_DUMP_DIR, dconf.DB_NAME)))
+        os.system("sudo rm -rf *BACKUP*".format(os.path.join(dconf.DB_DUMP_DIR, dconf.DB_NAME)))
+        run("memsql --user={} --host={} --port={} --password={} -e 'BACKUP DATABASE {} to \"{}\"'".format(dconf.DB_USER, dconf.DB_HOST, dconf.DB_PORT, dconf.DB_PASSWORD, dconf.DB_NAME, dumpfile))
+#        run('mysqldump --user={} --host={} --port={} --password={} --databases {} > {}'.format(dconf.DB_USER, dconf.DB_HOST, dconf.DB_PORT, dconf.DB_PASSWORD, dconf.DB_NAME, dumpfile))
     else:
         raise Exception("Database Type {} Not Implemented !".format(dconf.DB_TYPE))
     return True
@@ -614,7 +664,10 @@ def clean_recovery():
 
 @task
 def restore_database():
-    dumpfile = os.path.join(dconf.DB_DUMP_DIR, dconf.DB_NAME + '.dump')
+    if dconf.DB_TYPE == 'memsql':
+        dumpfile = os.path.join(dconf.DB_DUMP_DIR, dconf.DB_NAME + '.backup')
+    else:
+        dumpfile = os.path.join(dconf.DB_DUMP_DIR, dconf.DB_NAME + '.dump')
     if not dconf.ORACLE_FLASH_BACK and not file_exists(dumpfile):
         raise FileNotFoundError("Database dumpfile '{}' does not exist!".format(dumpfile))
 
@@ -634,6 +687,9 @@ def restore_database():
             dconf.DB_PASSWORD, dconf.DB_USER, dconf.DB_HOST, dconf.DB_NAME, dumpfile))
     elif dconf.DB_TYPE == 'mysql':
         run('mysql --user={} --password={} < {}'.format(dconf.DB_USER, dconf.DB_PASSWORD, dumpfile))
+    elif dconf.DB_TYPE == 'memsql':
+        drop_database()
+        run("memsql --user={} --host={} --port={} --password={} -e 'RESTORE DATABASE {} FROM \"{}\"'".format(dconf.DB_USER, dconf.DB_HOST, dconf.DB_PORT, dconf.DB_PASSWORD, dconf.DB_NAME, dumpfile))
     else:
         raise Exception("Database Type {} Not Implemented !".format(dconf.DB_TYPE))
     LOG.info('Finish restoring database')
@@ -643,6 +699,8 @@ def restore_database():
 def is_ready_db(interval_sec=10):
     if dconf.DB_TYPE == 'mysql':
         cmd_fmt = "mysql --user={} --password={} -e 'exit'".format
+    if dconf.DB_TYPE == 'memsql':
+        cmd_fmt = "memsql --user={} --host={} --port={} --password={} -e 'exit'".format
     else:
         LOG.info('database %s connecting function is not implemented, sleep %s seconds and return',
                  dconf.DB_TYPE, dconf.RESTART_SLEEP_SEC)
@@ -650,7 +708,10 @@ def is_ready_db(interval_sec=10):
 
     with hide('everything'), settings(warn_only=True):  # pylint: disable=not-context-manager
         while True:
-            res = run(cmd_fmt(dconf.DB_USER, dconf.DB_PASSWORD))
+            if dconf.DB_TYPE == "memsql":
+                res = run(cmd_fmt(dconf.DB_USER, dconf.DB_HOST, dconf.DB_PORT, dconf.DB_PASSWORD))
+            else:
+                res = run(cmd_fmt(dconf.DB_USER, dconf.DB_PASSWORD))
             if res.failed:
                 LOG.info('Database %s is not ready, wait for %s seconds',
                          dconf.DB_TYPE, interval_sec)
@@ -735,6 +796,8 @@ def _set_oltpbench_property(name, line):
             else:
                 raise Exception("MySQL Database Version {} "
                                 "Not Implemented !".format(dconf.DB_VERSION))
+        elif dconf.DB_TYPE == 'memsql':
+            dburl_fmt = 'jdbc:mysql://{host}:{port}/{db}?useSSL=false'.format
         else:
             raise Exception("Database Type {} Not Implemented !".format(dconf.DB_TYPE))
         database_url = dburl_fmt(host=dconf.DB_HOST, port=dconf.DB_PORT, db=dconf.DB_NAME)
@@ -856,6 +919,8 @@ def set_dynamic_knobs(recommendation, context):
     UNKNOWN = 'unknown'  # pylint: disable=invalid-name
     if dconf.DB_TYPE == 'mysql':
         cmd_fmt = "mysql --user={} --password={} -e 'SET GLOBAL {}={}'".format
+    if dconf.DB_TYPE == 'memsql':
+        cmd_fmt = "memsql --user={} --host {} --Port {} --password={} -e 'SET GLOBAL {}={}'".format
     else:
         raise Exception('database {} set dynamic knob function is not implemented.'.format(
                         dconf.DB_TYPE))
@@ -868,7 +933,10 @@ def set_dynamic_knobs(recommendation, context):
                 continue
             mode = context.get(knob, UNKNOWN)
             if mode == DYNAMIC:
-                res = run(cmd_fmt(dconf.DB_USER, dconf.DB_PASSWORD, knob, value))
+                if dconf.DB_TYPE == 'memsql':
+                    res = run(cmd_fmt(dconf.DB_USER, dconf.DB_HOST, dconf.DB_PORT, dconf.DB_PASSWORD, knob, value))
+                else:
+                    res = run(cmd_fmt(dconf.DB_USER, dconf.DB_PASSWORD, knob, value))
             elif mode == RESTART:
                 LOG.error('Knob %s cannot be set dynamically, restarting database is required, '
                           'skip this knob.', knob)

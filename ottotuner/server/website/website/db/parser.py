@@ -11,6 +11,7 @@ from .myrocks.parser import MyRocksParser
 from .postgres.parser import PostgresParser
 from .oracle.parser import OracleParser
 from .mysql.parser import MysqlParser
+from .memsql.parser import MemsqlParser
 
 _DBMS_PARSERS = {}
 
@@ -28,6 +29,8 @@ def _get(dbms_id):
             clz = OracleParser
         elif obj.type == DBMSType.MYSQL:
             clz = MysqlParser
+        elif obj.type == DBMSType.MEMSQL:
+            clz = MemsqlParser
         else:
             raise NotImplementedError('Implement me! {}'.format(obj))
 
@@ -63,7 +66,7 @@ def convert_dbms_knobs(dbms_id, knobs, knob_catalog=None):
 
 
 def convert_dbms_metrics(dbms_id, numeric_metrics, observation_time, target_objective, hyperparameters):
-    print("---------------------- MRD ----------dbms id is: ",str(_get(dbms_id)))
+#    print("---------------------- MRD ----------dbms id is: ",str(_get(dbms_id)))
     return _get(dbms_id).convert_dbms_metrics(
         numeric_metrics, observation_time, target_objective, hyperparameters)
 

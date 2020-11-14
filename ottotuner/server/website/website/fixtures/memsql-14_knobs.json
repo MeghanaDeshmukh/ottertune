@@ -1,0 +1,243 @@
+[
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "engine_variables",
+            "vartype": 2,
+            "default": 0,
+            "minval": 0,
+            "maxval": null,
+            "unit": 3,
+            "enumvals": null,
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.node_degree_of_parallelism",
+            "tunable": true,
+            "summary": "",
+            "description": "",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "engine_variables",
+            "vartype": 2,
+            "default": 100000,
+            "minval": 0,
+            "maxval": null,
+            "unit": 3,
+            "enumvals": null,
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.max_connections",
+            "tunable": true,
+            "summary": "",
+            "description": "The number of simultaneous clients allowed.",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "engine_variables",
+            "vartype": 2,
+            "default": 192,
+            "minval": 0,
+            "maxval": null,
+            "unit": 3,
+            "enumvals": null,
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.max_connection_threads",
+            "tunable": true,
+            "summary": "",
+            "description": "The maximum number of kernel threads for processing queries.",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "engine_variables",
+            "vartype": 2,
+            "default": 0,
+            "minval": 0,
+            "maxval": null,
+            "unit": 3,
+            "enumvals": null,
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.query_parallelism",
+            "tunable": true,
+            "summary": "",
+            "description": "Maximum number of simultaneous running queries. This is a session variable that can also be set globally.",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "engine_variables",
+            "vartype": 2,
+            "default": 1000,
+            "minval": null,
+            "maxval": null,
+            "unit": 3,
+            "enumvals": null,
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.workload_management_max_connections_per_leaf",
+            "tunable": true,
+            "summary": "",
+            "description": "The maximum number of connections to use per leaf node in the cluster. This variable can sync to all aggregators.",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "engine_variables",
+            "vartype": 2,
+            "default": 100,
+            "minval": null,
+            "maxval": null,
+            "unit": 3,
+            "enumvals": null,
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.workload_management_max_queue_depth",
+            "tunable": true,
+            "summary": "",
+            "description": "The maximum depth of the query queue, which is the maximum number of queries that can be queued.",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "engine_variables",
+            "vartype": 2,
+            "default": 8192,
+            "minval": null,
+            "maxval": null,
+            "unit": 3,
+            "enumvals": null,
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.workload_management_max_threads_per_leaf",
+            "tunable": true,
+            "summary": "",
+            "description": "The maximum number of threads to use per leaf. ",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "system_variables",
+            "vartype": 2,
+            "default": "3600",
+            "minval": null,
+            "maxval": null,
+            "unit": 5,
+            "enumvals": null,
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.workload_management_queue_timeout",
+            "tunable": true,
+            "summary": "",
+            "description": "",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "system_variables",
+            "vartype": 5,
+            "default": "ON",
+            "minval": null,
+            "maxval": null,
+            "unit": 3,
+            "enumvals": "ON,OFF",
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.workload_management",
+            "tunable": false,
+            "summary": "",
+            "description": "",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "system_variables",
+            "vartype": 2,
+            "default": "8192",
+            "minval": null,
+            "maxval": null,
+            "unit": 1,
+            "enumvals": "null",
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.load_data_read_size",
+            "tunable": true,
+            "summary": "",
+            "description": "Number of bytes read at a time by LOAD DATA. This variable can sync to all aggregators and all leaves.",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "system_variables",
+            "vartype": 2,
+            "default": "8192",
+            "minval": null,
+            "maxval": null,
+            "unit": 1,
+            "enumvals": "null",
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.load_data_write_size",
+            "tunable": true,
+            "summary": "",
+            "description": "Number of bytes written at a time by LOAD DATA. This variable can sync to all aggregators and all leaves.",
+            "resource": 4
+        }
+    },
+    {
+        "model": "website.KnobCatalog",
+        "fields": {
+            "category": "system_variables",
+            "vartype": 2,
+            "default": "60",
+            "minval": null,
+            "maxval": null,
+            "unit": 1,
+            "enumvals": "null",
+            "context": "user",
+            "scope": "global",
+            "dbms": 1014,
+            "name": "global.lock_wait_timeout",
+            "tunable": true,
+            "summary": "",
+            "description": "Time, in seconds, to wait for a row lock before returning an error.",
+            "resource": 4
+        }
+    }
+
+]

@@ -9,6 +9,14 @@ from django.db import migrations
 def load_initial_data(apps, schema_editor):
     initial_data_fixtures = [
         "dbms_catalog.json",
+        "postgres-1014_knobs.json",
+        "postgres-1014_metrics.json",
+        "memsql-14_metrics.json",
+        "memsql-14_knobs.json",
+        "memsql-5_metrics.json",
+        "memsql-5_knobs.json",
+        "memsql-1414_metrics.json",
+        "memsql-1414_knobs.json",
         "postgres-109_knobs.json",
         "postgres-109_metrics.json",
         "postgres-1012_knobs.json",

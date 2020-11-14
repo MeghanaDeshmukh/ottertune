@@ -566,9 +566,12 @@ def train_ddpg(train_ddpg_input):
 
 
 def create_and_save_recommendation(recommended_knobs, result, status, **kwargs):
+    print("----------- MRD in async_tasks.py recommended knobs while saving: ",str(recommended_knobs))
     dbms_id = result.dbms.pk
     formatted_knobs = db.parser.format_dbms_knobs(dbms_id, recommended_knobs)
+    print("----------- MRD in async_tasks.py formatted knobs: ",str(formatted_knobs))
     config = db.parser.create_knob_configuration(dbms_id, formatted_knobs)
+    print("----------- MRD in async_tasks.py config: ",str(config))
     knob_names = recommended_knobs.keys()
     knobs = KnobCatalog.objects.filter(name__in=knob_names)
     knob_contexts = {knob.clean_name: knob.context for knob in knobs}
@@ -580,8 +583,10 @@ def create_and_save_recommendation(recommended_knobs, result, status, **kwargs):
         context=knob_contexts
     )
     result.next_configuration = JSONUtil.dumps(retval)
+    print("----------- MRD in async_tasks.py recommended next_config: ",str(result.next_configuration))
     result.save()
 
+    print("----------- MRD in async_tasks.py recommended knobs retval: ",str(retval))
     return retval
 
 
@@ -712,7 +717,7 @@ def process_training_data(target_data):
     y_target = target_data['y_matrix']
     rowlabels_target = np.array(target_data['rowlabels'])
 
-    print("----------------- MRD ----------------------- target data is: \n",str(target_data))
+#    print("----------------- MRD ----------------------- target data is: \n",str(target_data))
     if not np.array_equal(X_columnlabels, target_data['X_columnlabels']):
         raise Exception(('The workload and target data should have '
                          'identical X columnlabels (sorted knob names)'),
@@ -856,7 +861,9 @@ def configuration_recommendation(recommendation_input):
     session = newest_result.session
     task_name = _get_task_name(session, target_data['newest_result_id'])
 
+    print ("---------- MRD in config recommendation. target data obtained: ",str(target_data))
     early_return, target_data_res = check_early_return(target_data, algorithm)
+    print ("---------- MRD in config recommendation. early return is: ",str(early_return))
     if early_return:
         LOG.debug("\n%s: Result = %s\n", task_name, _task_result_tostring(target_data_res))
         LOG.info("%s: Returning early from config recommendation.", task_name)
@@ -869,6 +876,7 @@ def configuration_recommendation(recommendation_input):
         dummy_encoder, constraint_helper, pipeline_knobs,\
         pipeline_metrics = process_training_data(target_data)
 
+    print ("---------- MRD in config recommendation. Afer process_training_data, pipeline_knobs: ",str(pipeline_knobs))
     # FIXME: we should generate more samples and use a smarter sampling technique
     num_samples = params['NUM_SAMPLES']
     X_samples = np.empty((num_samples, X_scaled.shape[1]))

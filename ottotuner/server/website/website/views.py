@@ -633,6 +633,7 @@ def handle_result_files(session, files, execution_times=None):
 
     else:
         print("In else, the version is: ", str(summary['database_version']))
+        print("In else, the DB Type is: ", str(summary['database_type']))
         dbms_type = DBMSType.type(summary['database_type'])
         dbms_version = summary['database_version']
         workload_name = summary['workload_name']

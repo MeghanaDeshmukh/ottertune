@@ -154,9 +154,7 @@ OLTPBENCH_CONFIG = os.path.join(OLTPBENCH_HOME, 'config/htapb_config_memsql_otto
 OLTPBENCH_BENCH = 'htap'
 
 # Name of the benchmark handler
-RUN_CMD = 'java -cp .:target/htapbench-0.95-jar-with-dependencies.jar:/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/lib/mysql-connector-java-5.1.47.jar:/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/lib/mysql-connector-java-5.1.47-sources.jar pt.haslab.htapbench.core.HTAPBench --s 5' ## For htapBench
-#RUN_CMD = 'sh /home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/run-Exec-HTAPB_memsql.sh' ## For htapBench
-#RUN_CMD = 'java -cp /home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/target/htapbench-0.95-jar-with-dependencies.jar pt.haslab.htapbench.core.HTAPBench --s 5 ' ## For htapBench
+RUN_CMD = 'java -cp /home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/target/htapbench-0.95-jar-with-dependencies.jar pt.haslab.htapbench.core.HTAPBench --s 5' ## For htapBench
 LOG_PATH = os.path.join(OLTPBENCH_HOME, 'htap_run.log') ## For htapBench
 HTAP_FLAG = True
 #RUN_CMD = '/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/oltpbenchmark'  ## For oltp and olap / tpcc and tpch
@@ -201,4 +199,4 @@ WEBSITE_URL = 'http://127.0.0.1:8000'
 #WEBSITE_URL = 'http://0.0.0.0:8000/'
 
 # Code for uploading new results to the website
-UPLOAD_CODE = 'KAG08DL3HZUI8UC0YNP3'
+UPLOAD_CODE = 'OXH0VAQQXH1ORD8KMNI7'

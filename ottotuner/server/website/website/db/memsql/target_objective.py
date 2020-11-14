@@ -3,13 +3,15 @@
 #
 # Copyright (c) 2017-18, Carnegie Mellon University Database Group
 #
+
 import logging
 
 from website.utils import DataUtil, JSONUtil
-from ..base.target_objective import BaseThroughput
+from ..base.target_objective import BaseTargetObjective
 from website.types import DBMSType
-from ..base.target_objective import (BaseTargetObjective, BaseThroughput, LESS_IS_BETTER,
-                                     MORE_IS_BETTER)
+from ..base.target_objective import (BaseThroughput, BaseUserDefinedTarget,
+                                     LESS_IS_BETTER, MORE_IS_BETTER)  # pylint: disable=relative-beyond-top-level
+
 
 LOG = logging.getLogger(__name__)
 
@@ -60,6 +62,7 @@ class QphH(BaseTargetObjective):
         variable = metrics['unified_HTAP_metric.QphH'];
         return variable
 
+
 class RankSum_tpmC_QphH(BaseTargetObjective):
     def __init__(self):
         super().__init__(name='HTAP_RankSum_tQ', pprint='HTAP RankSum tQ', unit='seconds',
@@ -88,8 +91,12 @@ class RankSum_QphH_tpmC(BaseTargetObjective):
         variable = (metrics['unified_HTAP_metric.QphH']*w1) + (w2*metrics['unified_HTAP_metric.tpmC'])
         return variable
 
-target_objective_list = tuple((DBMSType.POSTGRES, target_obj) for target_obj in [  # pylint: disable=invalid-name
-    BaseThroughput(transactions_counter='pg_stat_database.xact_commit'),
+target_objective_list = tuple((DBMSType.MEMSQL, target_obj) for target_obj in [  # pylint: disable=invalid-name
+    BaseThroughput(transactions_counter=('global.successful_read_queries',
+                                         'global.successful_write_queries',
+                                         'global.failed_write_queries',
+                                         'global.failed_read_queries')),
+#    BaseThroughput(transactions_counter=('global.queries')),
     ElapsedTime(),
     UnifiedHTAPMetric(),
     tpmC(),

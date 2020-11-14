@@ -1,0 +1,9 @@
+{
+  "database_type": "memsql",
+  "database_url": "jdbc:mysql://127.0.0.1:3318/htap?useSSL=false",
+  "username": "root",
+  "password": "ottotuner",
+  "upload_code": "DEPRECATED",
+  "upload_url": "DEPRECATED",
+  "workload_name": "htap"
+}
