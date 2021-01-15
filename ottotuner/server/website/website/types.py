@@ -186,21 +186,44 @@ class LabelStyleType(BaseType):
     }
 
 
+
+class StartPopulationType(BaseType):
+    RND = 1
+    LHC = 2
+
+    TYPE_NAMES = {
+        RND: 'Random',
+        LHC: 'Latin Hyper Cube',
+    }
+
+    SHORT_NAMES = {
+        RND: 'RND',
+        LHC: 'LHC',
+    }
+
+    @classmethod
+    def short_name(cls, ctype):
+        return cls.SHORT_NAMES[ctype]
+
+
 class AlgorithmType(BaseType):
     GPR = 1
     DDPG = 2
     DNN = 3
+    MOMPO = 4
 
     TYPE_NAMES = {
         GPR: 'Gaussian Process Bandits',
         DDPG: 'Deep Deterministic Policy Gradients',
         DNN: 'Deep Neural Network',
+        MOMPO: 'Multi Objective MPO',
     }
 
     SHORT_NAMES = {
         GPR: 'GPR',
         DDPG: 'DDPG',
         DNN: 'DNN',
+        MOMPO: 'MOMPO',
     }
 
     @classmethod

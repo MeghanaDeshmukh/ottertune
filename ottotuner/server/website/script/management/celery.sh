@@ -1,1 +1,1 @@
-python3 manage.py celery worker --loglevel=info --pool=threads --concurrency=1 > celery.log 2>&1 &
+python manage.py celery worker --loglevel=info --pool=threads --concurrency=1 > celery.log 2>&1 &

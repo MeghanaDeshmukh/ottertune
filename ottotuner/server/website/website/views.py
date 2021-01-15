@@ -44,7 +44,7 @@ from .forms import NewResultForm, ProjectForm, SessionForm, SessionKnobForm
 from .models import (BackupData, DBMSCatalog, ExecutionTime, Hardware, KnobCatalog, KnobData,
                      MetricCatalog, MetricData, PipelineRun, Project, Result, Session,
                      SessionKnob, User, Workload, PipelineData)
-from .tasks import train_ddpg
+from .tasks import train_rl
 from .types import (DBMSType, KnobUnitType, MetricType,
                     TaskType, VarType, WorkloadStatusType, AlgorithmType, PipelineTaskType)
 from .utils import (JSONUtil, LabelUtil, MediaUtil, TaskUtil)
@@ -498,6 +498,8 @@ def handle_result_files(session, files, execution_times=None):
 #    summary['database_version'] = '9.6'
     print("Summary as in handle_result_files is: \n", summary['database_version'])
 
+
+    ### Find the user defined metrics for the given session
     dbms_id = session.dbms.pk
     udm_before = {}
     udm_after = {}
@@ -531,9 +533,9 @@ def handle_result_files(session, files, execution_times=None):
             udm_catalog.summary = 'user defined metric, not target objective'
             udm_catalog.save()
     # Find worst throughput
-    past_metrics = MetricData.objects.filter(session=session)
-    metric_meta = target_objectives.get_instance(session.dbms.pk, session.target_objective)
-    if len(past_metrics) > 0:
+    past_metrics = MetricData.objects.filter(session=session)  ### Get all the metric data sets for the given session
+    metric_meta = target_objectives.get_instance(session.dbms.pk, session.target_objective)  ### Get the target objective for the session.
+    if len(past_metrics) > 0:       ### Check if this current result set is the worst than the existing worst result we have.
         worst_metric = past_metrics.order_by('-id').first()
         worst_target_value = JSONUtil.loads(worst_metric.data)[session.target_objective]
         for past_metric in past_metrics:
@@ -551,7 +553,7 @@ def handle_result_files(session, files, execution_times=None):
         if '*' in worst_metric.name:
             LOG.debug("All previous results are invalid")
             penalty_target_value = worst_target_value
-        else:
+        else:           #### After updating the worst result for the session, calculate the penalty for the target value.
             LOG.debug("Worst target value so far is: %d", worst_target_value)
             penalty_factor = JSONUtil.loads(session.hyperparameters).get('PENALTY_FACTOR', 2)
             if metric_meta.improvement == target_objectives.MORE_IS_BETTER:
@@ -561,9 +563,9 @@ def handle_result_files(session, files, execution_times=None):
 
     # Update the past invalid results
     for past_metric in past_metrics:
-        if '*' in past_metric.name:
-            past_metric_data = JSONUtil.loads(past_metric.data)
-            past_metric_data[session.target_objective] = penalty_target_value
+        if '*' in past_metric.name:         ### Metrics with * in name is invalid.
+            past_metric_data = JSONUtil.loads(past_metric.data) 
+            past_metric_data[session.target_objective] = penalty_target_value       ### Update the invalid results with the new penalty value
             past_metric.data = JSONUtil.dumps(past_metric_data)
             past_metric.save()
 
@@ -831,8 +833,13 @@ def handle_result_files(session, files, execution_times=None):
     elif session.algorithm == AlgorithmType.DDPG:
         subtask_list = [
             ('preprocessing', (result_id, session.algorithm)),
-            ('train_ddpg', ()),
+            ('train_rl', ()),
             ('configuration_recommendation_ddpg', ()),
+        ]
+    elif session.algorithm == AlgorithmType.MOMPO:
+        subtask_list = [
+            ('preprocessing', (result_id, session.algorithm)),
+            ('train_rl', ()),
         ]
     elif session.algorithm == AlgorithmType.DNN:
         subtask_list = [
@@ -1846,6 +1853,13 @@ def create_test_website(request):  # pylint: disable=unused-argument
                                 upload_code='ottertuneTestTuningDDPG',
                                 algorithm=AlgorithmType.DDPG)
     set_default_knobs(s4)
+    # create mompo session
+    s5 = Session.objects.create(name='test_session_mompo', tuning_session='tuning_session',
+                                dbms_id=1, hardware=test_hardware, project=test_project,
+                                creation_time=now(), last_update=now(), user=test_user,
+                                upload_code='ottertuneTestTuningMOMPO',
+                                algorithm=AlgorithmType.MOMPO)
+    set_default_knobs(s5)
     response = HttpResponse("Success: create test website successfully")
     return response
 

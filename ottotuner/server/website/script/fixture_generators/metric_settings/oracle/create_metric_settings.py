@@ -91,7 +91,7 @@ VERSIONS = (121, 12, 19)
 
 
 def usage():
-    print('python3 create_metric_settings.py [version] (valid versions: {})'.format(
+    print('python create_metric_settings.py [version] (valid versions: {})'.format(
         ', '.join(VERSIONS)))
     sys.exit(1)
 

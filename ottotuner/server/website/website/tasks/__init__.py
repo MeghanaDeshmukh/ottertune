@@ -6,7 +6,7 @@
 from .async_tasks import (aggregate_target_results,
                           configuration_recommendation,
                           map_workload,
-                          train_ddpg,
+                          train_rl,
                           configuration_recommendation_ddpg)
 
 

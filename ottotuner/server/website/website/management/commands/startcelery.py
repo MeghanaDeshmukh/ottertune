@@ -13,7 +13,7 @@ from fabric.api import hide, lcd, local
 
 class Command(BaseCommand):
     help = 'Start celery and celerybeat in the background.'
-    celery_cmd = 'python3 manage.py {cmd} {opts} {pipe} &'.format
+    celery_cmd = 'python manage.py {cmd} {opts} {pipe} &'.format
     max_wait_sec = 60
 
     def add_arguments(self, parser):

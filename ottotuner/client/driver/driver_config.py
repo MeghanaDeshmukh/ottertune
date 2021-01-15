@@ -24,16 +24,16 @@ LOGIN_PORT = None  # Set when using a port other than the SSH default
 #==========================================================
 
 # Postgres, Oracle or Mysql
-DB_TYPE = 'memsql'
+DB_TYPE = 'postgres'
 
 # Database version
-DB_VERSION = '14'
+DB_VERSION = '10'
 
 # Name of the database
-DB_NAME = 'htap'
+DB_NAME = 'tpcc'
 
 # Database username
-DB_USER = 'root'
+DB_USER = 'postgres'
 
 # Password for DB_USER
 DB_PASSWORD = 'ottotuner'
@@ -42,10 +42,10 @@ DB_PASSWORD = 'ottotuner'
 ADMIN_USER = DB_USER
 
 # Database host address
-DB_HOST = '127.0.0.1'
+DB_HOST = 'localhost'
 
 # Database port
-DB_PORT = '3318'
+DB_PORT = '5432'
 
 # If set to True, DB_CONF file is mounted to database container file
 # Only available when HOST_CONN is docker or remote_docker
@@ -53,10 +53,10 @@ DB_CONF_MOUNT = False
 
 # Path to the configuration file on the database server
 # If DB_CONF_MOUNT is True, the path is on the host server, not docker
-DB_CONF = '/etc/sysctl.conf'
+DB_CONF = '/etc/postgresql/10/main/postgresql.conf'
 
 # Path to the directory for storing database dump files
-DB_DUMP_DIR = '/tmp/htap/'
+DB_DUMP_DIR = None
 
 # Base config settings to always include when installing new configurations
 if DB_TYPE == 'mysql':
@@ -66,10 +66,6 @@ if DB_TYPE == 'mysql':
         # Be careful about it when tuning a production database, it changes your binlog behavior.
         'skip-log-bin': None,
     }
-elif DB_TYPE == 'memsql':
-    BASE_DB_CONF = None
-        # Do not generate binlog, otherwise the disk space will grow continuely during the tuning
-        # Be careful about it when tuning a production database, it changes your binlog behavior.
 elif DB_TYPE == 'postgres':
     BASE_DB_CONF = {
         'track_counts': 'on',
@@ -84,16 +80,16 @@ else:
 DATABASE_DISK = None
 
 # Set this to a different database version to override the current version
-OVERRIDE_DB_VERSION = 14.14
+OVERRIDE_DB_VERSION = None
 
 # POSTGRES-SPECIFIC OPTIONS >>>
 #PG_DATADIR = '/var/lib/postgresql/10/main'
-PG_DATADIR = '/etc/lib/memsql/'
+PG_DATADIR = '/etc/postgresql/10/main/'
 
 # ORACLE-SPECIFIC OPTIONS >>>
 ORACLE_AWR_ENABLED = False
 ORACLE_FLASH_BACK = True
-RESTORE_POINT = 'htap_point'
+RESTORE_POINT = 'tpcc_point'
 RECOVERY_FILE_DEST = '/opt/oracle/oradata/ORCL'
 RECOVERY_FILE_DEST_SIZE = '15G'
 
@@ -145,21 +141,18 @@ RESTART_SLEEP_SEC = 30
 #==========================================================
 
 # Path to OLTPBench directory
-OLTPBENCH_HOME = os.path.expanduser('/home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/')
+OLTPBENCH_HOME = os.path.expanduser('/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/')
 
 # Path to the OLTPBench configuration file
-OLTPBENCH_CONFIG = os.path.join(OLTPBENCH_HOME, 'config/htapb_config_memsql_ottotuner.xml')
+OLTPBENCH_CONFIG = os.path.join(OLTPBENCH_HOME, 'config/tpcc_config_postgres.xml')
 
 # Name of the benchmark to run
-OLTPBENCH_BENCH = 'htap'
+OLTPBENCH_BENCH = 'tpcc'
 
-# Name of the benchmark handler
-RUN_CMD = 'java -cp .:target/htapbench-0.95-jar-with-dependencies.jar:/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/lib/mysql-connector-java-5.1.47.jar:/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/lib/mysql-connector-java-5.1.47-sources.jar pt.haslab.htapbench.core.HTAPBench --s 5' ## For htapBench
-#RUN_CMD = 'sh /home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/run-Exec-HTAPB_memsql.sh' ## For htapBench
-#RUN_CMD = 'java -cp /home/mrd/Desktop/OttoTuner/htap/HTAPBench-master/target/htapbench-0.95-jar-with-dependencies.jar pt.haslab.htapbench.core.HTAPBench --s 5 ' ## For htapBench
-LOG_PATH = os.path.join(OLTPBENCH_HOME, 'htap_run.log') ## For htapBench
-HTAP_FLAG = True
-#RUN_CMD = '/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/oltpbenchmark'  ## For oltp and olap / tpcc and tpch
+RUN_CMD = '/home/mrd/Desktop/OttoTuner/otterTuneCode/oltpbench/oltpbenchmark'  ## For oltp and olap / tpcc and tpch
+LOG_PATH = os.path.join(OLTPBENCH_HOME, 'tpcc_run.log') ## For htapBench
+HTAP_FLAG = False
+
 
 #==========================================================
 #  CONTROLLER OPTIONS
@@ -174,7 +167,7 @@ CONTROLLER_HOME = DRIVER_HOME + '/../controller'
 #CONTROLLER_HOME = '/home/mrd/Desktop/OttoTuner/otterTuneCode/ottertune/client/controller'
 
 # Path to the controller configuration file
-CONTROLLER_CONFIG = os.path.join(CONTROLLER_HOME, 'config/sample_memsql_config.json'.format(DB_TYPE))
+CONTROLLER_CONFIG = os.path.join(CONTROLLER_HOME, 'config/sample_postgres_config.json'.format(DB_TYPE))
 
 
 #==========================================================
@@ -201,4 +194,4 @@ WEBSITE_URL = 'http://127.0.0.1:8000'
 #WEBSITE_URL = 'http://0.0.0.0:8000/'
 
 # Code for uploading new results to the website
-UPLOAD_CODE = 'KAG08DL3HZUI8UC0YNP3'
+UPLOAD_CODE = 'LFI0QAAE2MMJ2MSQDELR'

@@ -122,10 +122,10 @@
     {
         "fields": {
             "category": "Write-Ahead Log / Archiving",
-            "maxval": null,
+            "maxval": 2,
             "dbms": 8,
             "name": "global.archive_mode",
-            "minval": null,
+            "minval": 0,
             "default": "off",
             "tunable": false,
             "enumvals": "always,on,off",

@@ -3,6 +3,7 @@
 #
 # Copyright (c) 2017-18, Carnegie Mellon University Database Group
 #
+import lhsmdu
 import random
 import queue
 import time
@@ -35,6 +36,8 @@ from website import db
 from website.types import PipelineTaskType, AlgorithmType, VarType
 from website.utils import DataUtil, JSONUtil
 from website.settings import ENABLE_DUMMY_ENCODER, TIME_ZONE, VIEWS_FOR_DDPG
+import os
+import json
 
 
 LOG = get_task_logger(__name__)
@@ -204,13 +207,13 @@ def calc_next_knob_range(algorithm, knob_info, newest_result, good_val, bad_val,
 
 
 @shared_task(base=IgnoreResultTask, name='preprocessing')
-def preprocessing(result_id, algorithm):
+def preprocessing(result_id, algorithm):   ### Creates and updates target_data dictionary
     LOG.info("------------------------------------------------------------- in preprocessing ---------------------- MRD ----------")
     start_ts = time.time()
     target_data = {}
-    target_data['newest_result_id'] = result_id
+    target_data['newest_result_id'] = result_id  ### Update the current result id as the newest_result_id
     newest_result = Result.objects.get(pk=result_id)
-    session = newest_result.session
+    session = newest_result.session   ### Get the data of this result id and update the session
     knobs = SessionKnob.objects.get_knobs_for_session(session)
     task_name = _get_task_name(session, result_id)
     LOG.info("%s: Preprocessing data...", task_name)
@@ -250,15 +253,15 @@ def preprocessing(result_id, algorithm):
     # Check that we've completed the background tasks at least once. We need
     # this data in order to make a configuration recommendation (until we
     # implement a sampling technique to generate new training data).
-    has_pipeline_data = PipelineData.objects.filter(workload=newest_result.workload).exists()
+    has_pipeline_data = PipelineData.objects.filter(workload=newest_result.workload).exists() ### Get the latest lasso and k means results
     session_results = Result.objects.filter(session=session)
     results_cnt = len(session_results)
     skip_ddpg = False
     ignore = ['range_test']
     for i, result in enumerate(session_results):
-        if any(symbol in result.metric_data.name for symbol in ignore):
+        if any(symbol in result.metric_data.name for symbol in ignore):  ### Remove the "not clean" metrics
             results_cnt -= 1
-            if i == len(session_results) - 1 and algorithm == AlgorithmType.DDPG:
+            if i == len(session_results) - 1 and algorithm == AlgorithmType.DDPG:  ### Whether there are enough results for ddpg to work on.
                 skip_ddpg = True
 
     LOG.debug("%s: workload=%s, has_pipeline_data: %s, # results: %s, results_cnt: %s, "
@@ -269,12 +272,12 @@ def preprocessing(result_id, algorithm):
         # generate a config randomly
         random_knob_result = gen_random_data(knobs)
         target_data['status'] = 'random'
-        target_data['config_recommend'] = random_knob_result
+        target_data['config_recommend'] = random_knob_result   ## Randomly generating the next configuration
         LOG.debug('%s: Generated a random config.', task_name)
 
     elif not has_pipeline_data or results_cnt == 0 or skip_ddpg or session.tuning_session == 'lhs':
         if not has_pipeline_data and session.tuning_session == 'tuning_session':
-            LOG.info("%s: Background tasks haven't ran for this workload yet, "
+            LOG.info("%s: Background tasks haven't ran for this workload yet, "   #### No latest pipeline
                      "picking data with lhs.", task_name)
             target_data['debug'] = ("Background tasks haven't ran for this workload yet. "
                                     "If this keeps happening, please make sure Celery periodic "
@@ -288,8 +291,10 @@ def preprocessing(result_id, algorithm):
             target_data['debug'] = ("The most recent result cannot be used by DDPG,"
                                     "picking data with lhs.")
 
+        ### If any of the above conditions is true, generate lhs samples.
+        ### Recommend the next config from that.
         all_samples = JSONUtil.loads(session.lhs_samples)
-        if len(all_samples) == 0:
+        if len(all_samples) == 0:   ### Generate lhs samples.
             num_lhs_samples = 100 if session.tuning_session == 'lhs' else 10
             all_samples = gen_lhs_samples(knobs, num_lhs_samples)
             LOG.debug('%s: Generated %s LHS samples (LHS data: %s).', task_name, num_lhs_samples,
@@ -310,13 +315,13 @@ def preprocessing(result_id, algorithm):
 @shared_task(base=IgnoreResultTask, name='aggregate_target_results')
 def aggregate_target_results(aggregate_target_results_input):
     start_ts = time.time()
-    result_id, algorithm, target_data = aggregate_target_results_input
+    result_id, algorithm, target_data = aggregate_target_results_input  ### This is the return arguments from preprocessing
     newest_result = Result.objects.get(pk=result_id)
     session = newest_result.session
     task_name = _get_task_name(session, result_id)
 
     # If the preprocessing method has already generated a config, bypass this method.
-    if 'config_recommend' in target_data:
+    if 'config_recommend' in target_data:  #### If the config is recommended by lhs or random function
         assert 'newest_result_id' in target_data and 'status' in target_data
         LOG.debug("\n%s: Result = %s\n", task_name, _task_result_tostring(target_data))
         LOG.info('%s: Skipping aggregate_target_results (status=%s).', task_name,
@@ -327,18 +332,23 @@ def aggregate_target_results(aggregate_target_results_input):
 
     # Aggregate all knob config results tried by the target so far in this
     # tuning session and this tuning workload.
-    target_results = Result.objects.filter(session=session,
+    target_results = Result.objects.filter(session=session,   #### Obtain the results for the current session and workload id
                                            dbms=newest_result.dbms,
                                            workload=newest_result.workload)
     LOG.debug("%s: # results: %s", task_name, len(target_results))
     if len(target_results) == 0:
         raise Exception('Cannot find any results for session_id={}, dbms_id={}'
                         .format(session, newest_result.dbms))
-    agg_data = DataUtil.aggregate_data(target_results)
-    LOG.debug("%s ~ INITIAL: X_matrix=%s, X_columnlabels=%s", task_name,
+    agg_data = DataUtil.aggregate_data(target_results)    ### Get the aggregated data only for current session and workload id 
+    LOG.debug("%s ~ INITIAL: X_matrix=%s, X_columnlabels=%s", task_name, 
               agg_data['X_matrix'].shape, len(agg_data['X_columnlabels']))
     agg_data['newest_result_id'] = result_id
-    agg_data['status'] = 'good'
+    agg_data['status'] = 'good'   
+    ### possible vals: 'random', 'lhs' and 'range_test' --------  MRD Comments
+    ### ' random' when config is generated randomly
+    ### 'lhs' when config is generated through lhs
+    ### 'range_test'  in calc_next_knob_range
+    ### 'good' only when the aggregated results are obtained from the session (DB, previously run results)
 
     # Clean knob data
     cleaned_agg_data = DataUtil.clean_knob_data(agg_data['X_matrix'],
@@ -354,7 +364,7 @@ def aggregate_target_results(aggregate_target_results_input):
     return agg_data, algorithm
 
 
-def gen_random_data(knobs):
+def gen_random_data(knobs):   ### Generates the next configuration randomly within the lower and upper bounds
     random_knob_result = {}
     for knob in knobs:
         name = knob["name"]
@@ -424,10 +434,12 @@ def gen_lhs_samples(knobs, nsamples):
     return lhs_samples
 
 
-@shared_task(base=IgnoreResultTask, name='train_ddpg')
-def train_ddpg(train_ddpg_input):
+
+
+@shared_task(base=IgnoreResultTask, name='train_rl')
+def train_rl(train_rl_input):
     start_ts = time.time()
-    result_id, algorithm, target_data = train_ddpg_input
+    result_id, algorithm, target_data = train_rl_input
     result = Result.objects.get(pk=result_id)
     session = result.session
     dbms = session.dbms
@@ -443,6 +455,8 @@ def train_ddpg(train_ddpg_input):
     LOG.info('%s: Add training data to ddpg and train ddpg...', task_name)
 
     params = JSONUtil.loads(session.hyperparameters)
+    ### Get the results from the session. --------- MRD comments
+    ### Session has info of which training method is being used.
     session_results = Result.objects.filter(session=session,
                                             creation_time__lt=result.creation_time).order_by('pk')
 
@@ -460,7 +474,7 @@ def train_ddpg(train_ddpg_input):
 
     # Extract data from result and previous results
     result = Result.objects.filter(pk=result_id)
-    if results_cnt == 0:
+    if results_cnt == 0:  ## If there are no other results, curr is the base as well as prev result
         base_result_id = result_id
         prev_result_id = result_id
     else:
@@ -481,7 +495,7 @@ def train_ddpg(train_ddpg_input):
     if len(target_obj_idx) == 0:
         raise Exception(('[{}] Could not find target objective in metrics '
                          '(target_obj={})').format(task_name, target_objective))
-    if len(target_obj_idx) > 1:
+    if len(target_obj_idx) > 1: ### --------------------- This check ensures that there are no more than 1 target objective!! 
         raise Exception(('[{}] Found {} instances of target objective in '
                          'metrics (target_obj={})').format(task_name,
                                                            len(target_obj_idx),
@@ -542,121 +556,228 @@ def train_ddpg(train_ddpg_input):
                     * abs(2 * prev_objective - objective) / prev_objective
     LOG.info('%s: reward: %f', task_name, reward)
 
-    # Update ddpg
-    ddpg = DDPG(n_actions=knob_num, n_states=metric_num, alr=params['DDPG_ACTOR_LEARNING_RATE'],
+    if algorithm == AlgorithmType.DDPG:
+        # Update ddpg
+        ddpg = DDPG(n_actions=knob_num, n_states=metric_num, alr=params['DDPG_ACTOR_LEARNING_RATE'],
                 clr=params['DDPG_CRITIC_LEARNING_RATE'], gamma=params['DDPG_GAMMA'],
                 batch_size=params['DDPG_BATCH_SIZE'],
                 a_hidden_sizes=params['DDPG_ACTOR_HIDDEN_SIZES'],
                 c_hidden_sizes=params['DDPG_CRITIC_HIDDEN_SIZES'],
                 use_default=params['DDPG_USE_DEFAULT'])
-    if session.ddpg_actor_model and session.ddpg_critic_model:
-        ddpg.set_model(session.ddpg_actor_model, session.ddpg_critic_model)
-    if session.ddpg_reply_memory:
-        ddpg.replay_memory.set(session.ddpg_reply_memory)
-    ddpg.add_sample(prev_normalized_metric_data, knob_data, reward, normalized_metric_data)
-    for _ in range(params['DDPG_UPDATE_EPOCHS']):
-        ddpg.update()
-    session.ddpg_actor_model, session.ddpg_critic_model = ddpg.get_model()
-    session.ddpg_reply_memory = ddpg.replay_memory.get()
-    session.save()
-    exec_time = save_execution_time(start_ts, "train_ddpg", result.first())
-    LOG.debug("\n%s: Result = %s\n", task_name, _task_result_tostring(target_data))
-    LOG.info('%s: Done training ddpg (%.1f seconds).', task_name, exec_time)
+        if session.ddpg_actor_model and session.ddpg_critic_model:
+            ddpg.set_model(session.ddpg_actor_model, session.ddpg_critic_model)
+        if session.ddpg_reply_memory:
+            ddpg.replay_memory.set(session.ddpg_reply_memory)
+        ddpg.add_sample(prev_normalized_metric_data, knob_data, reward, normalized_metric_data)
+        for _ in range(params['DDPG_UPDATE_EPOCHS']):
+            ddpg.update()
+        session.ddpg_actor_model, session.ddpg_critic_model = ddpg.get_model()
+        session.ddpg_reply_memory = ddpg.replay_memory.get()
+        session.save()
+        exec_time = save_execution_time(start_ts, "train_rl", result.first())
+        LOG.debug("\n%s: Result = %s\n", task_name, _task_result_tostring(target_data))
+        LOG.info('%s: Done training ddpg (%.1f seconds).', task_name, exec_time)
+        return target_data, algorithm
+
+    elif algorithm == AlgorithmType.MOMPO:
+        ### Update MOMPO
+        print("#$################# 8*********** MRD ************* IN the mompo section now. Finding and aggregating target results") 
+        LOG.info("%s: # results: %s", task_name, results_cnt)
+
+        if results_cnt == 0:
+            LOG.info('%s: No results found yet to train the model - DDPG', task_name, exec_time)
+            return
+
+        mompo_data = DataUtil.aggregate_data(session_results)
+        LOG.info("%s ~ INITIAL: X_matrix=%s, X_columnlabels=%s", task_name,
+                  mompo_data['X_matrix'].shape, len(mompo_data['X_columnlabels']))
+        # Clean knob data
+        cleaned_agg_data = DataUtil.clean_knob_data(mompo_data['X_matrix'],
+                                                mompo_data['X_columnlabels'], [session])
+        mompo_data['X_matrix'] = np.array(cleaned_agg_data[0])
+        mompo_data['X_columnlabels'] = np.array(cleaned_agg_data[1])
+        knob_bounds = np.vstack(DataUtil.get_knob_bounds(mompo_data['X_columnlabels'].flatten(), session))
+        mompo_data['X_matrix'] = MinMaxScaler().fit(knob_bounds).transform(mompo_data['X_matrix'])
+        LOG.info("%s ~ FINAL: X_matrix=%s, X_columnlabels=%s", task_name,
+              mompo_data['X_matrix'].shape, len(mompo_data['X_columnlabels']))
+
+        # Clean metric data
+        views = VIEWS_FOR_DDPG.get(dbms.type, None)   ### Need to check if this has to be done for mompo
+        metric_data, _ = DataUtil.clean_metric_data(mompo_data['y_matrix'],
+                                                mompo_data['y_columnlabels'], views)
+        #metric_data = metric_data.flatten()
+        metric_scalar = MinMaxScaler().fit(metric_data)
+        mompo_data['y_matrix'] = np.array(metric_scalar.transform(metric_data))
+        LOG.info("%s ~ FINAL: y_matrix=%s, y_columnlabels=%s", task_name,
+              mompo_data['y_matrix'].shape, len(mompo_data['y_columnlabels']))
+        LOG.info("%s ~ FINAL: y_matrix=%s, y_columnlabels=%s", task_name,
+              metric_data.shape, len(mompo_data['y_columnlabels']))
+
+        print("target objective is: : ",str(target_objective),str(type(target_objective)))
+        if str(target_objective) in ('Chebyshev','Unified_HTAP_metric','HTAP_RankSum_tQ','HTAP_RankSum_Qt'):
+            print("in multi objective ----- index type: ")
+            # Filter ys by required metric qphh
+            reward_qphh_idx = [i for i, n in enumerate(mompo_data['y_columnlabels']) if (n == 'unified_HTAP_metric.QphH')]
+            if len(reward_qphh_idx) == 0:
+                raise Exception(('[{}] Could not find metrics for MOMPO in metrics ').format(task_name))
+            mompo_data['reward_'+str(reward_qphh_idx)] = np.array(mompo_data['y_matrix'][:,reward_qphh_idx]).tolist()
+        
+            # Filter ys by required metric tpmc
+            reward_tpmc_idx = [i for i, n in enumerate(mompo_data['y_columnlabels']) if (n == 'unified_HTAP_metric.tpmC')]
+            if len(reward_tpmc_idx) == 0:
+                raise Exception(('[{}] Could not find metrics for MOMPO in metrics ').format(task_name))
+            mompo_data['reward_'+str(reward_tpmc_idx)] = np.array(mompo_data['y_matrix'][:,reward_tpmc_idx]).tolist()
+
+            mompo_data['objective_indexes'] = np.array([reward_qphh_idx[0],reward_tpmc_idx[0]]).tolist()
+            mompo_data['objectives'] = 2
+            print("in multi objective ----- index type: ",str(reward_tpmc_idx),str(type(reward_tpmc_idx)))
+            mompo_data['reward'] = np.array([np.array(mompo_data['y_matrix'])[:,reward_qphh_idx], np.array(mompo_data['y_matrix'])[:,reward_tpmc_idx]]).tolist()
+        else: 
+            print("------------- in single objective ----- index type: ")
+            mompo_data['objective_indexes'] = np.array(target_obj_idx).tolist()
+            mompo_data['objectives'] = 1
+            mompo_data['reward'] = np.array(np.array(mompo_data['y_matrix'])[:,target_obj_idx[0]]).tolist()
+
+        mompo_data['X_matrix'] = mompo_data['X_matrix'].tolist()
+        mompo_data['X_columnlabels'] = np.array(mompo_data['X_columnlabels']).tolist()
+        mompo_data['y_matrix'] = np.array(mompo_data['y_matrix']).tolist()
+        mompo_data['y_columnlabels'] = np.array(mompo_data['y_columnlabels']).tolist()
+        mompo_data['rowlabels'] = np.array(mompo_data['rowlabels']).tolist()
+        mompo_data['newest_result_id'] = result_id
+        mompo_data['status'] = 'good'
+        mompo_data['target_objective'] = target_objective
+        mompo_data['target_objective_value'] = np.array(objective).tolist()
+
+        print("The type is: ",str(target_obj_idx), " type: ", str(type(target_obj_idx)))
+        mompo_data['TOValues'] = np.array(np.array(mompo_data['y_matrix'])[:,target_obj_idx[0]]).tolist()
+
+        print("#$################# 8*********** MRD ************* Calling the mompo now and printing agg_data: \n",str(mompo_data)) 
+        file1 = open("/home/mrd/Desktop/OttoTuner/otterTuneCode/ottertune/server/analysis/mompo/input.txt","w")
+        json.dump(mompo_data, file1)
+        file1.close();
+        command = "python3.8 /home/mrd/Desktop/OttoTuner/otterTuneCode/ottertune/server/analysis/mompo/mompoAgent.py "
+        os.system(str(command))
+        print("#$################# 8*********** MRD ************* ENDING mompo now ") 
+        with open("/home/mrd/Desktop/OttoTuner/otterTuneCode/ottertune/server/analysis/mompo/output.txt") as f:
+            mompoOutput = json.load(f)
+
+        #print("#$################# 8*********** MRD ************* ENDED mompo now. Obtained output: \n", str(mompoOutput))
+        print("#$################# 8*********** MRD ************* ENDED mompo now. Obtained output: \n")
+        nextKnobs = np.array(mompoOutput['nextConfig'])
+        knob_bounds = np.vstack(DataUtil.get_knob_bounds(knob_labels, session))
+        nextKnobs = MinMaxScaler().fit(knob_bounds).inverse_transform(nextKnobs.reshape(1, -1))[0]
+        conf_map = {k: nextKnobs[i] for i, k in enumerate(knob_labels)}
+        result_list = Result.objects.filter(pk=result_id)
+        result = result_list.first()
+        target_data_res = create_and_save_recommendation(recommended_knobs=conf_map, result=result,
+                                                     status='good', info='INFO: ddpg')
+        exec_time = save_execution_time(start_ts, "train_rl_mompo", result)
+        LOG.debug("\n%s: Result = %s\n", task_name, _task_result_tostring(target_data_res))
+        LOG.info("%s: Done recommending the next configuration (DDPG, %.1f seconds).",
+             task_name, exec_time)
+        
+        return
+    
+
     return target_data, algorithm
 
 
-def create_and_save_recommendation(recommended_knobs, result, status, **kwargs):
-    print("----------- MRD in async_tasks.py recommended knobs while saving: ",str(recommended_knobs))
-    dbms_id = result.dbms.pk
-    formatted_knobs = db.parser.format_dbms_knobs(dbms_id, recommended_knobs)
-    print("----------- MRD in async_tasks.py formatted knobs: ",str(formatted_knobs))
-    config = db.parser.create_knob_configuration(dbms_id, formatted_knobs)
-    print("----------- MRD in async_tasks.py config: ",str(config))
-    knob_names = recommended_knobs.keys()
-    knobs = KnobCatalog.objects.filter(name__in=knob_names)
-    knob_contexts = {knob.clean_name: knob.context for knob in knobs}
-    retval = dict(**kwargs)
-    retval.update(
-        status=status,
-        result_id=result.pk,
-        recommendation=config,
-        context=knob_contexts
-    )
-    result.next_configuration = JSONUtil.dumps(retval)
-    print("----------- MRD in async_tasks.py recommended next_config: ",str(result.next_configuration))
-    result.save()
 
-    print("----------- MRD in async_tasks.py recommended knobs retval: ",str(retval))
+def create_and_save_recommendation(recommended_knobs, result, status, **kwargs): 
+    #print("----------- MRD in async_tasks.py recommended knobs while saving: ",str(recommended_knobs)) 
+    dbms_id = result.dbms.pk
+    formatted_knobs = db.parser.format_dbms_knobs(dbms_id, recommended_knobs) 
+    #print("----------- MRD in async_tasks.py formatted knobs: ",str(formatted_knobs)) 
+    config = db.parser.create_knob_configuration(dbms_id, formatted_knobs)
+    #print("----------- MRD in async_tasks.py config: ",str(config))
+    knob_names = recommended_knobs.keys() 
+    knobs = KnobCatalog.objects.filter(name__in=knob_names) 
+    knob_contexts = {knob.clean_name: knob.context for knob in knobs} 
+    retval = dict(**kwargs) 
+    retval.update( 
+            status=status,
+            result_id=result.pk, 
+            recommendation=config,
+            context=knob_contexts
+            ) 
+    result.next_configuration = JSONUtil.dumps(retval) 
+    #print("----------- MRD in async_tasks.py recommended next_config: ",str(result.next_configuration))
+    result.save()
+    #print("----------- MRD in async_tasks.py recommended knobs retval: ",str(retval)) 
     return retval
 
 
-def check_early_return(target_data, algorithm):
-    result_id = target_data['newest_result_id']
-    newest_result = Result.objects.get(pk=result_id)
-    if target_data.get('status', 'good') != 'good':  # No status or status is not 'good'
-        if target_data['status'] == 'random':
-            info = 'The config is generated by Random.'
-        elif target_data['status'] == 'lhs':
+def check_early_return(target_data, algorithm): 
+    ### MRD Comments
+    ### This function checks if the workload map is run or not
+    ### if the function / configs was returned early without workload map
+    ### If the config has to be retured or 
+    ### the config recommendation function should be executed
+    result_id = target_data['newest_result_id'] 
+    newest_result = Result.objects.get(pk=result_id) 
+    if target_data.get('status', 'good') != 'good':  # No status or status is not 'good' 
+        if target_data['status'] == 'random': 
+            info = 'The config is generated by Random.' 
+        elif target_data['status'] == 'lhs': 
             info = 'The config is generated by LHS.'
-        elif target_data['status'] == 'range_test':
-            info = 'Searching for valid knob ranges.'
-        else:
-            info = 'Unknown.'
-        info += ' ' + target_data.get('debug', '')
+        elif target_data['status'] == 'range_test': 
+            info = 'Searching for valid knob ranges.' 
+        else: 
+            info = 'Unknown.' 
+            info += ' ' + target_data.get('debug', '')
         target_data_res = create_and_save_recommendation(
-            recommended_knobs=target_data['config_recommend'], result=newest_result,
-            status=target_data['status'], info=info, pipeline_run=None)
-        LOG.debug('%s: Skipping configuration recommendation (status=%s).',
-                  _get_task_name(newest_result.session, result_id), target_data_res['status'])
-        return True, target_data_res
+            recommended_knobs=target_data['config_recommend'],
+            result=newest_result, status=target_data['status'], info=info, pipeline_run=None) 
+        LOG.debug('%s: Skipping configuration recommendation (status=%s).', 
+                _get_task_name(newest_result.session, result_id), target_data_res['status']) 
+        return True, target_data_res 
     return False, None
 
 
-@shared_task(base=ConfigurationRecommendation, name='configuration_recommendation_ddpg')
-def configuration_recommendation_ddpg(recommendation_ddpg_input):  # pylint: disable=invalid-name
-    start_ts = time.time()
-    target_data, algorithm = recommendation_ddpg_input
+@shared_task(base=ConfigurationRecommendation, name='configuration_recommendation_ddpg') 
+def configuration_recommendation_ddpg(recommendation_ddpg_input):  # pylint: disable=invalid-name 
+    start_ts = time.time() 
+    target_data, algorithm = recommendation_ddpg_input 
     result_id = target_data['newest_result_id']
-    result_list = Result.objects.filter(pk=result_id)
-    result = result_list.first()
-    session = result.session
-    dbms = session.dbms
+    result_list = Result.objects.filter(pk=result_id) 
+    result = result_list.first() 
+    session = result.session 
+    dbms = session.dbms 
     task_name = _get_task_name(session, result_id)
 
     early_return, target_data_res = check_early_return(target_data, algorithm)
-    if early_return:
-        LOG.debug("\n%s: Result = %s\n", task_name, _task_result_tostring(target_data_res))
-        LOG.info("%s: Returning early from config recommendation (DDPG).", task_name)
+    if early_return: 
+        LOG.debug("\n%s: Result = %s\n", task_name, _task_result_tostring(target_data_res)) 
+        LOG.info("%s: Returning early from config recommendation (DDPG).", task_name) 
         return target_data_res
 
     LOG.info('%s: Recommendation the next configuration (DDPG)...', task_name)
 
-    params = JSONUtil.loads(session.hyperparameters)
-    agg_data = DataUtil.aggregate_data(result_list)
-    views = VIEWS_FOR_DDPG.get(dbms.type, None)
-    metric_data, _ = DataUtil.clean_metric_data(agg_data['y_matrix'],
-                                                agg_data['y_columnlabels'], views)
-    metric_data = metric_data.flatten()
-    metric_scalar = MinMaxScaler().fit(metric_data.reshape(1, -1))
-    normalized_metric_data = metric_scalar.transform(metric_data.reshape(1, -1))[0]
-    cleaned_knob_data = DataUtil.clean_knob_data(agg_data['X_matrix'],
-                                                 agg_data['X_columnlabels'], [session])
+    params = JSONUtil.loads(session.hyperparameters) 
+    agg_data = DataUtil.aggregate_data(result_list) 
+    views = VIEWS_FOR_DDPG.get(dbms.type, None) 
+    metric_data, _ = DataUtil.clean_metric_data(agg_data['y_matrix'], agg_data['y_columnlabels'], views) 
+    metric_data = metric_data.flatten() 
+    metric_scalar = MinMaxScaler().fit(metric_data.reshape(1, -1)) 
+    normalized_metric_data = metric_scalar.transform(metric_data.reshape(1, -1))[0] 
+    cleaned_knob_data = DataUtil.clean_knob_data(agg_data['X_matrix'], agg_data['X_columnlabels'], [session]) 
     knob_labels = np.array(cleaned_knob_data[1]).flatten()
-    knob_num = len(knob_labels)
+    knob_num = len(knob_labels) 
     metric_num = len(metric_data)
 
     ddpg = DDPG(n_actions=knob_num, n_states=metric_num,
-                a_hidden_sizes=params['DDPG_ACTOR_HIDDEN_SIZES'],
-                c_hidden_sizes=params['DDPG_CRITIC_HIDDEN_SIZES'],
-                use_default=params['DDPG_USE_DEFAULT'])
+            a_hidden_sizes=params['DDPG_ACTOR_HIDDEN_SIZES'],
+            c_hidden_sizes=params['DDPG_CRITIC_HIDDEN_SIZES'],
+            use_default=params['DDPG_USE_DEFAULT']) 
+
     if session.ddpg_actor_model is not None and session.ddpg_critic_model is not None:
-        ddpg.set_model(session.ddpg_actor_model, session.ddpg_critic_model)
+        ddpg.set_model(session.ddpg_actor_model, session.ddpg_critic_model) 
     if session.ddpg_reply_memory is not None:
-        ddpg.replay_memory.set(session.ddpg_reply_memory)
+        ddpg.replay_memory.set(session.ddpg_reply_memory) 
     knob_data = ddpg.choose_action(normalized_metric_data)
 
     knob_bounds = np.vstack(DataUtil.get_knob_bounds(knob_labels, session))
-    knob_data = MinMaxScaler().fit(knob_bounds).inverse_transform(knob_data.reshape(1, -1))[0]
+    knob_data = MinMaxScaler().fit(knob_bounds).inverse_transform(knob_data.reshape(1, -1))[0] 
     conf_map = {k: knob_data[i] for i, k in enumerate(knob_labels)}
 
     target_data_res = create_and_save_recommendation(recommended_knobs=conf_map, result=result,
@@ -670,6 +791,15 @@ def configuration_recommendation_ddpg(recommendation_ddpg_input):  # pylint: dis
 
 
 def process_training_data(target_data):
+    ### MRD Comments
+    ### If the mapped workload exists, merges with the mapped workload.
+    ### Else, merges with self.
+    ### Remove duplicate rows before and after merge
+    ### Handle the categorical values with encoder.
+    ### Standardise the data / matrix
+    ### Get the gradient for descent.
+    ### Calculate the min and max values for each of the columns.
+    ### Return the calculated values.
     newest_result = Result.objects.get(pk=target_data['newest_result_id'])
     latest_pipeline_run = PipelineRun.objects.get(pk=target_data['pipeline_run'])
     session = newest_result.session
@@ -678,7 +808,7 @@ def process_training_data(target_data):
     pipeline_data_metric = None
 
     # Load mapped workload data
-    if target_data['mapped_workload'] is not None:
+    if target_data['mapped_workload'] is not None:   ### This is updated only by the map_workload function 
         print("------------------ MRD mapped workload is not NONE. ")
         mapped_workload_id = target_data['mapped_workload'][0]
         mapped_workload = Workload.objects.get(pk=mapped_workload_id)
@@ -686,14 +816,14 @@ def process_training_data(target_data):
             pipeline_run=latest_pipeline_run,
             workload=mapped_workload,
             task_type=PipelineTaskType.KNOB_DATA)
-        workload_knob_data = JSONUtil.loads(workload_knob_data.data)
+        workload_knob_data = JSONUtil.loads(workload_knob_data.data)  ## Convert it into json data type
         workload_metric_data = PipelineData.objects.get(
             pipeline_run=latest_pipeline_run,
             workload=mapped_workload,
             task_type=PipelineTaskType.METRIC_DATA)
-        print("Obtained workload_metric_data: ",str(workload_metric_data))
+        #print("Obtained workload_metric_data: ",str(workload_metric_data))
         workload_metric_data = JSONUtil.loads(workload_metric_data.data)
-        print("Obtained workload_metric_data: ",str(workload_metric_data))
+        #print("Obtained workload_metric_data: ",str(workload_metric_data))
         cleaned_workload_knob_data = DataUtil.clean_knob_data(workload_knob_data["data"],
                                                               workload_knob_data["columnlabels"],
                                                               [newest_result.session])
@@ -702,7 +832,7 @@ def process_training_data(target_data):
         y_workload = np.array(workload_metric_data['data'])
         y_columnlabels = np.array(workload_metric_data['columnlabels'])
         rowlabels_workload = np.array(workload_metric_data['rowlabels'])
-    else:
+    else:  ### Sticking with the current workload / no workload mapped yet.
         print("---------------**************************--- MRD mapped workload is NONE. ")
         # combine the target_data with itself is actually adding nothing to the target_data
         X_workload = np.array(target_data['X_matrix'])
@@ -718,7 +848,7 @@ def process_training_data(target_data):
     rowlabels_target = np.array(target_data['rowlabels'])
 
 #    print("----------------- MRD ----------------------- target data is: \n",str(target_data))
-    if not np.array_equal(X_columnlabels, target_data['X_columnlabels']):
+    if not np.array_equal(X_columnlabels, target_data['X_columnlabels']):  ### This will throw error if the mapped workload and the current WL has diff
         raise Exception(('The workload and target data should have '
                          'identical X columnlabels (sorted knob names)'),
                         X_columnlabels, target_data['X_columnlabels'])
@@ -733,24 +863,24 @@ def process_training_data(target_data):
     if len(target_obj_idx) == 0:
         raise Exception(('Could not find target objective in metrics '
                          '(target_obj={})').format(target_objective))
-    elif len(target_obj_idx) > 1:
+    elif len(target_obj_idx) > 1:  ### Multiple objective optimization is not supported here. MRD Comments
         raise Exception(('Found {} instances of target objective in '
                          'metrics (target_obj={})').format(len(target_obj_idx),
                                                            target_objective))
 
-    y_workload = y_workload[:, target_obj_idx]
+    y_workload = y_workload[:, target_obj_idx]   ### Use only the target objectives
     y_target = y_target[:, target_obj_idx]
     y_columnlabels = y_columnlabels[target_obj_idx]
 
     # Combine duplicate rows in the target/workload data (separately)
     X_workload, y_workload, rowlabels_workload = DataUtil.combine_duplicate_rows(
-        X_workload, y_workload, rowlabels_workload)
+        X_workload, y_workload, rowlabels_workload)   #### Remove duplicates within
     X_target, y_target, rowlabels_target = DataUtil.combine_duplicate_rows(
         X_target, y_target, rowlabels_target)
 
     # Delete any rows that appear in both the workload data and the target
     # data from the workload data
-    dups_filter = np.ones(X_workload.shape[0], dtype=bool)
+    dups_filter = np.ones(X_workload.shape[0], dtype=bool)   ### Remove duplicates after combining
     target_row_tups = [tuple(row) for row in X_target]
     for i, row in enumerate(X_workload):
         if tuple(row) in target_row_tups:
@@ -815,7 +945,7 @@ def process_training_data(target_data):
         y_scaled = -y_scaled
 
     # Set up constraint helper
-    constraint_helper = ParamConstraintHelper(scaler=X_scaler,
+    constraint_helper = ParamConstraintHelper(scaler=X_scaler,   ### Need to check this. MRD ???
                                               encoder=dummy_encoder,
                                               binary_vars=binary_encoder,
                                               init_flip_prob=params['INIT_FLIP_PROB'],
@@ -856,13 +986,13 @@ def process_training_data(target_data):
 @shared_task(base=ConfigurationRecommendation, name='configuration_recommendation')
 def configuration_recommendation(recommendation_input):
     start_ts = time.time()
-    target_data, algorithm = recommendation_input
+    target_data, algorithm = recommendation_input  #### --------- SEND THIS
     newest_result = Result.objects.get(pk=target_data['newest_result_id'])
     session = newest_result.session
     task_name = _get_task_name(session, target_data['newest_result_id'])
 
-    print ("---------- MRD in config recommendation. target data obtained: ",str(target_data))
-    early_return, target_data_res = check_early_return(target_data, algorithm)
+#    print ("---------- MRD in config recommendation. target data obtained: ",str(target_data))
+    early_return, target_data_res = check_early_return(target_data, algorithm)   ### Checks if the config recommendation should be made or already done.
     print ("---------- MRD in config recommendation. early return is: ",str(early_return))
     if early_return:
         LOG.debug("\n%s: Result = %s\n", task_name, _task_result_tostring(target_data_res))
@@ -872,16 +1002,34 @@ def configuration_recommendation(recommendation_input):
     LOG.info("%s: Recommending the next configuration...", task_name)
     params = JSONUtil.loads(session.hyperparameters)
 
-    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min,\
-        dummy_encoder, constraint_helper, pipeline_knobs,\
-        pipeline_metrics = process_training_data(target_data)
+    ### SEND THIS
+    X_columnlabels, X_scaler, X_scaled, y_scaled, X_max, X_min, dummy_encoder, constraint_helper, pipeline_knobs,\
+        pipeline_metrics = process_training_data(target_data ) ### If the workload is mapped, merges with the current results otherwise, cleans it.
 
-    print ("---------- MRD in config recommendation. Afer process_training_data, pipeline_knobs: ",str(pipeline_knobs))
+    #print ("---------- MRD in config recommendation. Afer process_training_data, pipeline_knobs: ",str(pipeline_knobs))
     # FIXME: we should generate more samples and use a smarter sampling technique
     num_samples = params['NUM_SAMPLES']
-    X_samples = np.empty((num_samples, X_scaled.shape[1]))
-    for i in range(X_scaled.shape[1]):
-        X_samples[:, i] = np.random.rand(num_samples) * (X_max[i] - X_min[i]) + X_min[i]
+    X_samples = np.empty((num_samples, X_scaled.shape[1]))   #### 2D Array of shape = num_samples(30) x X_scaled.shape[1] without initialising
+    startPopulation = params['START_POPULATION']
+    ### Start population Sampling 
+    ### Implementing Latin HyperCube sampling here.
+    if startPopulation == 'LHC':
+        print(" Start Sample selection through LHC ------------------ ^^^^ ****************")
+        lhsmdu.setRandomSeed(None)
+        X_samples = lhsmdu.sample(num_samples, X_scaled.shape[1])
+        for i in range(X_scaled.shape[1]):  ### For rach of the knob
+            X_samples[:, i] = X_samples[:, i] * (X_max[i] - X_min[i]) + X_min[i] 
+    elif startPopulation == 'MC':
+        print(" Start Sample selection through MC ------------------ ^^^^ ****************")
+        lhsmdu.setRandomSeed(None)
+        X_samples = lhsmdu.createRandomStandardUniformMatrix(num_samples, X_scaled.shape[1])
+        for i in range(X_scaled.shape[1]):  ### For rach of the knob
+            X_samples[:, i] = X_samples[:, i] * (X_max[i] - X_min[i]) + X_min[i] 
+    else:
+        print(" Start Sample selection through RND ------------------ ^^^^ ****************")
+        ### Implementation of random sampling
+        for i in range(X_scaled.shape[1]):  ### For rach of the knob
+            X_samples[:, i] = np.random.rand(num_samples) * (X_max[i] - X_min[i]) + X_min[i]  ### For each of 30 samples, for the knob.
 
     q = queue.PriorityQueue()
     for x in range(0, y_scaled.shape[0]):
@@ -908,6 +1056,8 @@ def configuration_recommendation(recommendation_input):
     res = None
     info_msg = 'INFO: training data size is {}. '.format(X_scaled.shape[0])
     info_msg += '-------------- MRD ----------------------------------'
+
+    ### Send X_samples, X_scaled, Y_samples, Y_scaled, target_data, pipeline knobs and metrics, X_max and X_min
     if algorithm == AlgorithmType.DNN:
         info_msg += 'Recommended by DNN.'
         # neural network model
@@ -928,7 +1078,6 @@ def configuration_recommendation(recommendation_input):
         session.save()
 
     elif algorithm == AlgorithmType.GPR:
-        print("In here, tuning")
         info_msg += 'Recommended by GPR.'
         info_msg += '---------------------------- MRD ------------------------'
         # default gpr model
@@ -1011,14 +1160,16 @@ def load_data_helper(filtered_pipeline_data, workload, task_type):
 
 @shared_task(base=MapWorkloadTask, name='map_workload')
 def map_workload(map_workload_input):
-    start_ts = time.time()
+    start_ts = time.time()          ### Get ALL the data updated by preprocessing and data aggregation.
     target_data, algorithm = map_workload_input
     newest_result = Result.objects.get(pk=target_data['newest_result_id'])
     session = newest_result.session
     task_name = _get_task_name(session, target_data['newest_result_id'])
 
     assert target_data is not None
-    if target_data['status'] != 'good':
+    if target_data['status'] != 'good':         
+        ### If not good, 'random' , 'lhs' and 'range_test' statuses  --------- MRD Comments
+        ### indicate that the workload mapping is not required
         LOG.debug('\n%s: Result = %s\n', task_name, _task_result_tostring(target_data))
         LOG.info("%s: Skipping workload mapping (status: %s).", task_name, target_data['status'])
         return target_data, algorithm
@@ -1053,10 +1204,10 @@ def map_workload(map_workload_input):
 
     workload_data = {}
     # Compute workload mapping data for each unique workload
-    for unique_workload in unique_workloads:
+    for unique_workload in unique_workloads:  ### Collecting the data of all other potential workloads
 
         # do not include the workload of the current session
-        if newest_result.workload.pk == unique_workload:
+        if newest_result.workload.pk == unique_workload:   ### Making sure that the current workload is matched with the existing workload.?
             continue
         workload_obj = Workload.objects.get(pk=unique_workload)
         wkld_results = Result.objects.filter(workload=workload_obj)

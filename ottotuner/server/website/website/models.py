@@ -15,7 +15,7 @@ from .db import target_objectives
 from .settings import TIME_ZONE
 from .types import (DBMSType, LabelStyleType, MetricType, KnobUnitType,
                     PipelineTaskType, VarType, KnobResourceType,
-                    WorkloadStatusType, AlgorithmType, StorageType)
+                    WorkloadStatusType, StartPopulationType, AlgorithmType, StorageType)
 
 
 class BaseModel(models.Model):
@@ -157,6 +157,8 @@ class Session(BaseModel):
     hardware = models.ForeignKey(Hardware, on_delete=models.CASCADE)
     algorithm = models.IntegerField(choices=AlgorithmType.choices(),
                                     default=AlgorithmType.GPR)
+    startPopulation = models.IntegerField(choices=StartPopulationType.choices(),
+                                    default=StartPopulationType.RND)
     lhs_samples = models.TextField(default="[]")
     ddpg_actor_model = models.BinaryField(null=True, blank=True)
     ddpg_critic_model = models.BinaryField(null=True, blank=True)
@@ -217,7 +219,8 @@ class Session(BaseModel):
     "TF_NUM_THREADS": 4,
     "TOP_NUM_CONFIG": 10,
     "BASE_TPMC": 0,
-    "BASE_QPHH": 0}''')
+    "BASE_QPHH": 0,
+    "START_POPULATION": "RND"}''')
 
     def clean(self):
         if self.target_objective is None:

@@ -588,7 +588,7 @@ def download_debug_info(pprint=False):
 def add_udm(result_dir=None):
     result_dir = result_dir or os.path.join(dconf.CONTROLLER_HOME, 'output')
     with lcd(dconf.UDM_DIR):  # pylint: disable=not-context-manager
-        local('python3 user_defined_metrics.py {}'.format(result_dir))
+        local('python user_defined_metrics.py {}'.format(result_dir))
 
 
 @task
@@ -699,7 +699,7 @@ def restore_database():
 def is_ready_db(interval_sec=10):
     if dconf.DB_TYPE == 'mysql':
         cmd_fmt = "mysql --user={} --password={} -e 'exit'".format
-    if dconf.DB_TYPE == 'memsql':
+    elif dconf.DB_TYPE == 'memsql':
         cmd_fmt = "memsql --user={} --host={} --port={} --password={} -e 'exit'".format
     else:
         LOG.info('database %s connecting function is not implemented, sleep %s seconds and return',
@@ -710,6 +710,9 @@ def is_ready_db(interval_sec=10):
         while True:
             if dconf.DB_TYPE == "memsql":
                 res = run(cmd_fmt(dconf.DB_USER, dconf.DB_HOST, dconf.DB_PORT, dconf.DB_PASSWORD))
+            elif dconf.DB_TYPE == "postgres":
+                res = sudo('/usr/lib/postgresql/10/bin/pg_ctl -D {} status'.format(
+                    dconf.PG_DATADIR), user=dconf.ADMIN_USER, capture=False)
             else:
                 res = run(cmd_fmt(dconf.DB_USER, dconf.DB_PASSWORD))
             if res.failed:

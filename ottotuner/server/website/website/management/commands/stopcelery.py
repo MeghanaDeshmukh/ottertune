@@ -12,7 +12,7 @@ from fabric.api import local, quiet, settings
 
 class Command(BaseCommand):
     help = 'Stop celery and celerybeat and remove pid files.'
-    celery_cmd = 'python3 manage.py {cmd} {opts} &'.format
+    celery_cmd = 'python manage.py {cmd} {opts} &'.format
     max_wait_sec = 15
 
     def add_arguments(self, parser):

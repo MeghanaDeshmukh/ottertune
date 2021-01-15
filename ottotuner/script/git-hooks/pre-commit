@@ -24,12 +24,12 @@ VALIDATOR_RESULT=0
 if [ -n "$FILES" ]; then
 
     # Uncomment to run the website tests
-    # cd server/website && python3 manage.py test --noinput -v 2
+    # cd server/website && python manage.py test --noinput -v 2
     # WEBSITE_TESTS_RESULT=$?
     # cd ../..
 
     # Uncomment to run the analysis tests
-    # cd server && python3 -m unittest discover -s analysis/tests -v
+    # cd server && python -m unittest discover -s analysis/tests -v
     # ANALYSIS_TESTS_RESULT=$?
     # cd ..
 
@@ -39,7 +39,7 @@ if [ -n "$FILES" ]; then
     # cd ..
 
     # Run source code validator
-    python3 script/validators/source_validator.py $FILES
+    python script/validators/source_validator.py $FILES
     VALIDATOR_RESULT=$?
 
     if [ "$VALIDATOR_RESULT" -ne 0 ] || [ "$WEBSITE_TESTS_RESULT" -ne 0 ] || [ "$ANALYSIS_TESTS_RESULT" -ne 0 ] || [ "$CONTROLLER_TESTS_RESULT" -ne 0 ]; then
